@@ -1,5 +1,6 @@
 import { getPrisma, isUniqueConstraint } from "@/lib/db";
 import type { AccountProfile, ExistingUser } from "@/lib/auth/accounts";
+import { signInRole } from "@/lib/beta/admins";
 import { linkInstallationRecords } from "@/lib/github/link-installation";
 import { createPrismaInstallationStore } from "@/lib/github/prisma-installation-store";
 import type { RepoSeed, VerifiedInstallation } from "@/lib/github/install";
@@ -41,6 +42,11 @@ export async function findUserByEmail(email: string): Promise<ExistingUser | nul
   return row ? toExistingUser(row) : null;
 }
 
+function adminRole(email: string | null): { role: "ADMIN" } | Record<string, never> {
+  if (signInRole(email) !== "ADMIN") return {};
+  return { role: "ADMIN" };
+}
+
 export async function createAppUser(profile: AccountProfile): Promise<ExistingUser> {
   const prisma = getPrisma();
   if (!prisma) throw new Error("database");
@@ -52,6 +58,7 @@ export async function createAppUser(profile: AccountProfile): Promise<ExistingUs
         name: profile.name,
         email: profile.email,
         avatarUrl: profile.avatarUrl,
+        ...adminRole(profile.email),
       },
     });
     return toExistingUser(row);
@@ -61,6 +68,13 @@ export async function createAppUser(profile: AccountProfile): Promise<ExistingUs
     if (!existing) throw error;
     if (existing.githubId && profile.githubId && existing.githubId !== profile.githubId) {
       throw error;
+    }
+    if (signInRole(profile.email) === "ADMIN" && existing.role !== "ADMIN") {
+      const promoted = await prisma.user.update({
+        where: { id: existing.id },
+        data: { role: "ADMIN" },
+      });
+      return toExistingUser(promoted);
     }
     return toExistingUser(existing);
   }
@@ -77,6 +91,7 @@ export async function updateAppUser(id: string, profile: AccountProfile): Promis
       name: profile.name,
       email: profile.email,
       avatarUrl: profile.avatarUrl,
+      ...adminRole(profile.email),
     },
   });
   return toExistingUser(row);

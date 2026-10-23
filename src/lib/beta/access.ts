@@ -1,9 +1,11 @@
 import { getPrisma, isUniqueConstraint } from "@/lib/db";
 import { normalizeEmail } from "@/lib/auth/login-code";
+import { isBootstrapAdmin } from "@/lib/beta/admins";
 
 export async function hasBetaAccess(email: string): Promise<boolean> {
   const normalized = normalizeEmail(email);
   if (!normalized) return false;
+  if (isBootstrapAdmin(normalized)) return true;
   const prisma = getPrisma();
   if (!prisma) return false;
   const row = await prisma.betaAccess.findUnique({

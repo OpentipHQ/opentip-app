@@ -27,20 +27,16 @@ Open http://localhost:3000.
 
 Without `DATABASE_URL`, the dashboard and a preview docs site still render. Set `AUTH_DEV_BYPASS=1` to open the dashboard without GitHub. That flag is ignored when `NODE_ENV` is production.
 
-Sign-up and log in are closed to the beta list. Approve an email from Admin, Applications, or on a localhost database only:
+Sign-up and log in are closed to the beta list. In production, set `ADMIN_EMAILS` to a comma-separated list of operator emails. Those addresses are approved for the beta. The next time one of them signs in with GitHub or an email code, the app creates or updates their account with the admin role. That is how the first admin gets in. They can then approve other people on the admin applications page. An address removed from `ADMIN_EMAILS` keeps the admin role it already has, and can sign in again while a `BetaAccess` row exists for it.
+
+On a localhost database, the same approval can be done by hand:
 
 ```bash
 npx tsx scripts/approve-beta-email.ts you@example.com
 npx tsx scripts/approve-beta-email.ts you@example.com --admin
 ```
 
-The script exits if `DATABASE_URL` is not `localhost` or `127.0.0.1`. The first admin can also be added by hand after the migration:
-
-```sql
-INSERT INTO "BetaAccess" ("id", "email") VALUES ('seed_admin', 'you@example.com');
--- After that person signs in:
-UPDATE "User" SET "role" = 'ADMIN' WHERE "email" = 'you@example.com';
-```
+The script exits if `DATABASE_URL` is not `localhost` or `127.0.0.1`. `--admin` sets the role when that email already has a user row. Run it again after the first local sign-in if the row was missing.
 
 Sign-in codes are emailed with Resend (`RESEND_API_KEY`, `RESEND_FROM`). They are HMAC-SHA256 hashed with `SESSION_SECRET` and are not stored in plaintext. Locally, set `LOGIN_CODE_SINK=.local/login-codes.log` when Resend is unset. Leave that unset in production.
 
@@ -69,5 +65,3 @@ Without `XAI_API_KEY` or `GROQ_API_KEY`, Copilot uses a fake provider in develop
 ## Tests
 
 Unit tests cover webhook signatures and duplicate deliveries, daily spend caps, cached summaries, and OG signatures. They do not need a database.
-
-To promote a person to admin after they sign in, set `User.role` to `ADMIN` in the database. There is no self-serve promotion.

@@ -1,3 +1,4 @@
+// Localhost only. In production, list the first admin in ADMIN_EMAILS.
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { isLocalDatabaseUrl } from "../src/lib/db-guard";

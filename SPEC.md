@@ -136,7 +136,7 @@ Decided 23 Oct 2026.
 - Models: users and admin role, GitHub App installations, repos, sites (subdomain, custom domain, branding), pages, jobs, webhook deliveries, chat edits, Worklog entries, plans, subscriptions, usage entries, beta invites, beta applications, feedback.
 - Plan rows seeded by the migration: Free $0, Pro $20, Team $200. The billing page hides prices unless `SHOW_PLAN_PRICES=1`.
 - Closed beta. `/sign-up` and `/login` offer GitHub or a 6-digit email code. Codes expire in 10 minutes, are stored hashed, and stop after 5 attempts. Resend waits 60 seconds. There are no passwords and no magic links.
-- An email can sign in only after it is on `BetaAccess`. Approving a beta application in admin adds that row. An unapproved email sees `/waitlist` and gets no session.
+- An email can sign in only after it is on `BetaAccess`, or listed in `ADMIN_EMAILS`. Approving a beta application in admin adds a `BetaAccess` row. Emails in `ADMIN_EMAILS` are approved and receive the admin role the next time they sign in, which bootstraps the first admin. An unapproved email sees `/waitlist` and gets no session.
 - GitHub and email can share one account when the emails match. A different GitHub account on the same email is refused.
 - The install button is on the signed-in Sites page. A GitHub install that arrives without the sign-in cookie does not show "sign-in attempt expired" and does not create sites. It is held, then linked after an approved sign-in if the GitHub account or email matches. An unapproved install never creates sites.
 - GitHub App OAuth, setup URL, and `POST /api/webhooks/github`. The app slug defaults to `opentip-copilot` (`GITHUB_APP_SLUG`). The install URL is `https://github.com/apps/opentip-copilot/installations/new`.
