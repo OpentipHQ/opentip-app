@@ -68,7 +68,7 @@ Those events cover install, uninstall, repo added or removed, push, rename, tran
 6. Create the other secrets in `.env.example`: `XAI_API_KEY`, `GROQ_API_KEY`, `RESEND_API_KEY`, `RESEND_FROM`, `OG_SIGNING_SECRET`, and `SESSION_SECRET`.
 7. Set those variables on the host for beta.opentip.tech.
 8. From this repo, run `npx prisma migrate deploy`.
-9. Install the app on one test repository from https://github.com/apps/opentip-copilot/installations/new. GitHub will send the user to the setup URL, then to the dashboard.
+9. Install the app on one test repository from https://github.com/apps/opentip-copilot/installations/new. GitHub sends the browser to the setup URL with `code`, `installation_id`, and `setup_action`, and no sign-in cookie. The app checks that this GitHub user can access that installation, holds the install, and sends them to log in. It does not show "The sign-in attempt expired." Sites are created only after an approved account signs in and the install matches that account. An email that is not on the beta list goes to the waitlist and no sites are created.
 10. Push a commit. The webhook should return 200. A second delivery of the same event must not create a second job. Uninstalling the app pauses the site. It does not delete it.
 
 Local webhook checks need a public tunnel to `http://localhost:3000/api/webhooks/github` and a real `DATABASE_URL`. Without a database the route still checks the signature, answers ping, and returns 503 for other events.

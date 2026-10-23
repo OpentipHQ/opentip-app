@@ -1,68 +1,143 @@
 import { cookies } from "next/headers";
-import { NextResponse } from "next/server";
-import { sessionCookieOptions } from "@/lib/auth";
 import { sessionSecret } from "@/lib/config";
 import { getPrisma } from "@/lib/db";
+import {
+  NEXT_COOKIE,
+  PENDING_INSTALL_COOKIE,
+  PENDING_INSTALL_TTL_SECONDS,
+  SESSION_TTL_SECONDS,
+} from "@/lib/auth/constants";
+import { applyGithubGate, type SessionDraft } from "@/lib/auth/gate";
+import { redirectWithCookies, requestOrigin } from "@/lib/auth/http";
+import { consumePendingInstall, readPendingInstall, storePendingInstall } from "@/lib/auth/pending-store";
+import {
+  createAppUser,
+  findUserByEmail,
+  findUserByGithubId,
+  linkInstallForUser,
+  toExistingUser,
+  updateAppUser,
+} from "@/lib/auth/users";
+import { hasBetaAccess } from "@/lib/beta/access";
 import { exchangeGithubCode } from "@/lib/github/app";
+import { listInstallationRepositories, readUserInstallation } from "@/lib/github/install";
+import { completeOauthCallback, readInstallationId } from "@/lib/github/oauth-callback";
 import { OAUTH_STATE_COOKIE, SESSION_COOKIE, signSession, verifySession } from "@/lib/session";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const origin = url.origin;
-  const code = url.searchParams.get("code");
-  const state = url.searchParams.get("state");
+  const origin = requestOrigin(request);
   const secret = sessionSecret();
   const jar = await cookies();
-  const pending = await verifySession(jar.get(OAUTH_STATE_COOKIE)?.value, secret ?? "");
-  if (!secret || !code || !state || !pending || pending.userId !== state) {
-    return NextResponse.redirect(new URL("/sign-in?error=state", origin));
+  const pendingState = secret
+    ? await verifySession(jar.get(OAUTH_STATE_COOKIE)?.value, secret)
+    : null;
+  const result = await completeOauthCallback(
+    {
+      code: url.searchParams.get("code"),
+      state: url.searchParams.get("state"),
+      installationId: readInstallationId(url.searchParams.get("installation_id")),
+      setupAction: url.searchParams.get("setup_action"),
+      pendingUserId: pendingState?.userId ?? null,
+      pendingInvite: pendingState?.name ?? null,
+      hasSecret: Boolean(secret),
+    },
+    {
+      exchange: exchangeGithubCode,
+      readInstallation: readUserInstallation,
+      listRepos: listInstallationRepositories,
+    },
+  );
+
+  const clearOauth = { name: OAUTH_STATE_COOKIE, value: "", maxAge: 0 };
+  if (!result.ok || !secret) {
+    const error = result.ok ? "session" : result.error;
+    return redirectWithCookies(origin, `/login?error=${error}`, [clearOauth]);
   }
 
   const prisma = getPrisma();
   if (!prisma) {
-    return NextResponse.redirect(new URL("/sign-in?error=database", origin));
+    return redirectWithCookies(origin, "/login?error=database", [clearOauth]);
   }
 
-  try {
-    const profile = await exchangeGithubCode(code);
-    const user = await prisma.user.upsert({
-      where: { githubId: profile.id },
-      create: {
-        githubId: profile.id,
-        login: profile.login,
-        name: profile.name,
-        email: profile.email,
-        avatarUrl: profile.avatarUrl,
-      },
-      update: {
-        login: profile.login,
-        name: profile.name,
-        email: profile.email,
-        avatarUrl: profile.avatarUrl,
-      },
-    });
-    if (pending.name && profile.email) {
-      await prisma.betaInvite.updateMany({
-        where: { token: pending.name, email: profile.email, acceptedAt: null },
-        data: { acceptedAt: new Date(), userId: user.id },
-      });
-    }
-    const session = await signSession(
-      {
+  const existingRaw = await verifySession(jar.get(SESSION_COOKIE)?.value, secret);
+  let existing: SessionDraft | null = null;
+  if (existingRaw) {
+    const row = await prisma.user.findUnique({ where: { id: existingRaw.userId } });
+    if (row) {
+      const user = toExistingUser(row);
+      existing = {
         userId: user.id,
         login: user.login,
         name: user.name,
         role: user.role,
-        exp: Date.now() + 14 * 24 * 60 * 60 * 1000,
+        email: user.email,
+        githubId: user.githubId,
+      };
+    }
+  }
+
+  const held = await readPendingInstall(jar.get(PENDING_INSTALL_COOKIE)?.value);
+  const nextPath = jar.get(NEXT_COOKIE)?.value ?? url.searchParams.get("next");
+  let outcome;
+  try {
+    outcome = await applyGithubGate(
+    result,
+    {
+      hasAccess: hasBetaAccess,
+      findUserByGithubId,
+      findUserByEmail,
+      createUser: createAppUser,
+      updateUser: updateAppUser,
+      savePending: storePendingInstall,
+      link: linkInstallForUser,
+      takePending: async () => held?.snapshot ?? null,
+      markPendingConsumed: async () => {
+        if (held) await consumePendingInstall(held.id);
+      },
+      existingSession: existing,
+    },
+    nextPath,
+    );
+  } catch {
+    return redirectWithCookies(origin, "/login?error=github", [clearOauth]);
+  }
+
+  if (outcome.session && result.inviteToken && result.profile.email) {
+    await prisma.betaInvite.updateMany({
+      where: { token: result.inviteToken, email: result.profile.email, acceptedAt: null },
+      data: { acceptedAt: new Date(), userId: outcome.session.userId },
+    });
+  }
+
+  const jarCookies: Array<{ name: string; value: string; maxAge: number }> = [
+    clearOauth,
+    { name: NEXT_COOKIE, value: "", maxAge: 0 },
+  ];
+  if (outcome.clearSession) {
+    jarCookies.push({ name: SESSION_COOKIE, value: "", maxAge: 0 });
+  }
+  if (outcome.pendingSelector) {
+    jarCookies.push({
+      name: PENDING_INSTALL_COOKIE,
+      value: outcome.pendingSelector,
+      maxAge: PENDING_INSTALL_TTL_SECONDS,
+    });
+  } else if (outcome.consumedPending) {
+    jarCookies.push({ name: PENDING_INSTALL_COOKIE, value: "", maxAge: 0 });
+  }
+  if (outcome.session) {
+    const token = await signSession(
+      {
+        userId: outcome.session.userId,
+        login: outcome.session.login,
+        name: outcome.session.name,
+        role: outcome.session.role,
+        exp: Date.now() + SESSION_TTL_SECONDS * 1000,
       },
       secret,
     );
-    jar.set(SESSION_COOKIE, session, sessionCookieOptions(14 * 24 * 60 * 60));
-    jar.delete(OAUTH_STATE_COOKIE);
-    const next = url.searchParams.get("next");
-    const safeNext = next && next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard";
-    return NextResponse.redirect(new URL(safeNext, origin));
-  } catch {
-    return NextResponse.redirect(new URL("/sign-in?error=github", origin));
+    jarCookies.push({ name: SESSION_COOKIE, value: token, maxAge: SESSION_TTL_SECONDS });
   }
+  return redirectWithCookies(origin, outcome.redirect, jarCookies);
 }

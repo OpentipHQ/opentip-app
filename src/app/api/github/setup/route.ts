@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
+import { requestOrigin } from "@/lib/auth/http";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const next = new URL("/dashboard", url.origin);
-  const installationId = url.searchParams.get("installation_id");
-  if (installationId) next.searchParams.set("installation_id", installationId);
-  return NextResponse.redirect(next);
+  const origin = requestOrigin(request);
+  if (url.searchParams.get("code")) {
+    const next = new URL("/api/auth/github/callback", origin);
+    url.searchParams.forEach((value, key) => next.searchParams.set(key, value));
+    return NextResponse.redirect(next);
+  }
+  return NextResponse.redirect(new URL("/login?from=install", origin));
 }

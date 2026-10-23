@@ -4,7 +4,7 @@ import {
   SpendLedger,
   utcDayKey,
 } from "@/lib/copilot/caps";
-import { estimateCostUsd, reserveTokens } from "@/lib/copilot/cost";
+import { DEFAULT_XAI_RATES, estimateCostUsd, ratesFromEnv, reserveTokens } from "@/lib/copilot/cost";
 import { prepareCopilotJob } from "@/lib/copilot/jobs";
 import { pageWriteMode, selectModel, taskSizeForJob } from "@/lib/copilot/models";
 import { createFakeProvider } from "@/lib/copilot/providers";
@@ -122,13 +122,20 @@ describe("spend caps", () => {
         GLOBAL_DAILY_CAP_USD: "25",
       },
     });
-    const estimate = estimateCostUsd(reserveTokens("heavy"), {
-      inputUsdPerMillion: 3,
-      outputUsdPerMillion: 15,
-    });
+    const estimate = estimateCostUsd(reserveTokens("heavy"), DEFAULT_XAI_RATES);
     expect(prepared).toMatchObject({ ok: true, estimateUsd: estimate });
     expect(ledger.spent("repo-a", "2026-10-23").repo).toBe(estimate);
     expect(estimate).toBeGreaterThan(0);
+  });
+});
+
+describe("xAI rate defaults", () => {
+  it("uses $1 input and $2 output per million tokens when the env is unset", () => {
+    expect(DEFAULT_XAI_RATES).toEqual({
+      inputUsdPerMillion: 1,
+      outputUsdPerMillion: 2,
+    });
+    expect(ratesFromEnv("xai", {})).toEqual(DEFAULT_XAI_RATES);
   });
 });
 

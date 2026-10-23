@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu } from "lucide-react";
+import { OpentipLockup } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -30,9 +31,7 @@ export function AppShell({
     <div className="min-h-screen bg-background">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-border bg-white md:flex">
         <div className="flex h-14 items-center px-5">
-          <Link href="/dashboard" className="text-sm tracking-tight">
-            Opentip
-          </Link>
+          <OpentipLockup />
         </div>
         <nav className="flex flex-col gap-1 px-3">
           {items.map((item) => (
@@ -54,7 +53,9 @@ export function AppShell({
               </SheetTrigger>
               <SheetContent side="left" className="w-72">
                 <SheetHeader>
-                  <SheetTitle>Opentip</SheetTitle>
+                  <SheetTitle>
+                    <OpentipLockup />
+                  </SheetTitle>
                 </SheetHeader>
                 <nav className="flex flex-col gap-1 px-4">
                   {items.map((item) => (
@@ -63,9 +64,9 @@ export function AppShell({
                 </nav>
               </SheetContent>
             </Sheet>
-            <Link href="/dashboard" className="text-sm tracking-tight md:hidden">
-              Opentip
-            </Link>
+            <span className="md:hidden">
+              <OpentipLockup />
+            </span>
           </div>
           <div className="flex items-center gap-3">
             <span className="text-sm text-muted-foreground">{userLabel}</span>
