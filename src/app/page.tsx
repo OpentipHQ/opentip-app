@@ -8,7 +8,7 @@ export default function HomePage() {
       <div className="flex flex-col gap-3">
         <h1 className="text-4xl tracking-tight">Hosted docs and a Worklog for a GitHub repo.</h1>
         <p className="max-w-xl text-base leading-7 text-muted-foreground">
-          Opentip writes the docs and updates them on every push. Sign in with the Opentip GitHub App. The beta app lives at beta.opentip.tech.
+          Opentip writes the docs and updates them on every push. Sign in with the Opentip Copilot GitHub App. The beta app lives at beta.opentip.tech.
         </p>
       </div>
       <div className="flex flex-col gap-3 sm:flex-row">

@@ -33,3 +33,12 @@ export function ogSecret(env: Env = process.env): string | null {
 export function showPlanPrices(env: Env = process.env): boolean {
   return env.SHOW_PLAN_PRICES === "1";
 }
+
+export function githubAppSlug(env: Env = process.env): string {
+  const slug = (env.GITHUB_APP_SLUG || "opentip-copilot").trim().toLowerCase();
+  return slug || "opentip-copilot";
+}
+
+export function githubAppInstallUrl(env: Env = process.env): string {
+  return `https://github.com/apps/${githubAppSlug(env)}/installations/new`;
+}

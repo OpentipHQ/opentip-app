@@ -2,7 +2,7 @@
 
 Status: 23 Oct 2026. This file is the source of truth for OpentipHQ/opentip-app. Update it when a decision changes.
 
-Opentip is a hosted docs and Worklog platform. Opentip Copilot writes docs for a GitHub repo and updates them on every push through one GitHub App, named Opentip. The beta app is served at beta.opentip.tech. The marketing site stays at opentip.tech in the other repository.
+Opentip is a hosted docs and Worklog platform. Opentip Copilot writes docs for a GitHub repo and updates them on every push through one GitHub App. The GitHub App is named Opentip Copilot because the name Opentip is reserved by another account. Its slug is `opentip-copilot`. The install URL is https://github.com/apps/opentip-copilot/installations/new. The beta app is served at beta.opentip.tech. The marketing site stays at opentip.tech in the other repository.
 
 The word for money a person sends a project is tip. The only assets are ETH and USDC. Tipping itself is out of scope until a later phase. Do not invent brand facts that are not in this file or in the product decisions below.
 
@@ -25,7 +25,7 @@ Foundation: app skeleton, database schema, GitHub App sign-in, webhook intake, C
 
 Elijah still has to:
 
-- Register the Opentip GitHub App on the OpentipHQ org. Sign-in and push updates use the same app. See GITHUB_APP_SETUP.md.
+- Register the GitHub App on the OpentipHQ org as Opentip Copilot, slug `opentip-copilot`. The name Opentip is reserved. Sign-in and push updates use the same app. Install URL: https://github.com/apps/opentip-copilot/installations/new. See GITHUB_APP_SETUP.md. Override the slug with `GITHUB_APP_SLUG` only if GitHub assigns a different one.
 - Create a separate Neon database for this app (Free plan). It becomes the production database at launch. Do not reuse the marketing site database.
 - Add xAI, Groq, and Resend keys.
 
@@ -135,7 +135,7 @@ Decided 23 Oct 2026.
 - Prisma schema and a SQL migration. Apply it with `prisma migrate deploy`. Do not use `db push`.
 - Models: users and admin role, GitHub App installations, repos, sites (subdomain, custom domain, branding), pages, jobs, webhook deliveries, chat edits, Worklog entries, plans, subscriptions, usage entries, beta invites, beta applications, feedback.
 - Plan rows seeded by the migration: Free $0, Pro $20, Team $200. The billing page hides prices unless `SHOW_PLAN_PRICES=1`.
-- GitHub App OAuth sign-in, setup URL, and `POST /api/webhooks/github`.
+- GitHub App OAuth sign-in, setup URL, and `POST /api/webhooks/github`. The app slug defaults to `opentip-copilot` (`GITHUB_APP_SLUG`). The install URL is `https://github.com/apps/opentip-copilot/installations/new`.
 - Webhook signature check, idempotent enqueue, uninstall and suspend pause, removed-repo pause, rename, archive, delete, and transfer handling.
 - Copilot provider layer, caps, cached summary helper, and `runCopilotJob`.
 - Dashboard: Sites, Worklog, Usage, Billing. No credit or token figures on those pages.

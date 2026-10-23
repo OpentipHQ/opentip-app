@@ -108,7 +108,7 @@ function githubHeaders(token: string): HeadersInit {
   return {
     accept: "application/vnd.github+json",
     authorization: `Bearer ${token}`,
-    "user-agent": "Opentip",
+    "user-agent": "Opentip Copilot",
     "x-github-api-version": "2022-11-28",
   };
 }

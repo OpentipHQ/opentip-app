@@ -25,7 +25,7 @@ export default async function SignInPage({
         <CardHeader>
           <CardTitle>Sign in</CardTitle>
           <CardDescription>
-            Use the Opentip GitHub App. The same app keeps docs updated on every push.
+            Use the Opentip Copilot GitHub App. The same app keeps docs updated on every push.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">

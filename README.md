@@ -1,6 +1,6 @@
 # Opentip app
 
-Hosted docs and a Worklog. Opentip writes docs for a GitHub repo and updates them on every push. The same GitHub App, named Opentip, signs people in and receives webhooks.
+Hosted docs and a Worklog. Opentip writes docs for a GitHub repo and updates them on every push. The same GitHub App, named Opentip Copilot, signs people in and receives webhooks. Install it at https://github.com/apps/opentip-copilot/installations/new.
 
 The beta app is https://beta.opentip.tech. Product decisions live in [SPEC.md](SPEC.md). GitHub App registration steps for the OpentipHQ org live in [GITHUB_APP_SETUP.md](GITHUB_APP_SETUP.md).
 
