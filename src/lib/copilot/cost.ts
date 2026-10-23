@@ -4,8 +4,8 @@ export type RateCard = {
 };
 
 export const DEFAULT_XAI_RATES: RateCard = {
-  inputUsdPerMillion: 3,
-  outputUsdPerMillion: 15,
+  inputUsdPerMillion: 1,
+  outputUsdPerMillion: 2,
 };
 
 export const DEFAULT_GROQ_RATES: RateCard = {

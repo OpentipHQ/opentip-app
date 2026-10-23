@@ -64,10 +64,10 @@ enum UsageStatus {
 
 model User {
   id           String   @id @default(cuid())
-  githubId     String   @unique
+  githubId     String?  @unique
   login        String
   name         String?
-  email        String?
+  email        String?  @unique
   avatarUrl    String?
   role         UserRole @default(USER)
   createdAt    DateTime @default(now())
@@ -299,8 +299,53 @@ model BetaApplication {
   priceAnswer String?
   status      String   @default("pending")
   createdAt   DateTime @default(now())
+  access      BetaAccess?
 
   @@index([status])
+}
+
+// One row per email that may sign in during the closed beta.
+// Approving a BetaApplication upserts this row. Invites do the same.
+model BetaAccess {
+  id            String           @id @default(cuid())
+  email         String           @unique
+  applicationId String?          @unique
+  application   BetaApplication? @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+  approvedAt    DateTime         @default(now())
+  createdAt     DateTime         @default(now())
+}
+
+// Hashed 6-digit sign-in codes. The plaintext code is never stored.
+model LoginCode {
+  id         String    @id @default(cuid())
+  email      String
+  codeHash   String
+  expiresAt  DateTime
+  attempts   Int       @default(0)
+  consumedAt DateTime?
+  ipHash     String?
+  createdAt  DateTime  @default(now())
+
+  @@index([email, createdAt])
+}
+
+// Installations that arrived from GitHub before an approved session existed.
+// The cookie holds the selector. Only the hash is stored. No GitHub user token.
+model PendingInstall {
+  id               String    @id @default(cuid())
+  selectorHash     String    @unique
+  githubUserId     String
+  email            String?
+  login            String
+  name             String?
+  avatarUrl        String?
+  installationJson Json
+  reposJson        Json
+  expiresAt        DateTime
+  consumedAt       DateTime?
+  createdAt        DateTime  @default(now())
+
+  @@index([expiresAt])
 }
 
 model Feedback {

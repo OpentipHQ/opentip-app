@@ -1,4 +1,4 @@
-const RESERVED = new Set([
+export const RESERVED_SUBDOMAINS = new Set([
   "www",
   "beta",
   "app",
@@ -11,6 +11,8 @@ const RESERVED = new Set([
   "assets",
   "static",
 ]);
+
+const RESERVED = RESERVED_SUBDOMAINS;
 
 export type HostDecision =
   | { kind: "app" }
