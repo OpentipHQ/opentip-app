@@ -49,7 +49,12 @@ export type GithubUser = {
   avatarUrl: string | null;
 };
 
-export async function exchangeGithubCode(code: string): Promise<GithubUser> {
+export type GithubAuthorization = {
+  accessToken: string;
+  profile: GithubUser;
+};
+
+export async function exchangeGithubCode(code: string): Promise<GithubAuthorization> {
   const tokenResponse = await fetch("https://github.com/login/oauth/access_token", {
     method: "POST",
     headers: {
@@ -71,7 +76,7 @@ export async function exchangeGithubCode(code: string): Promise<GithubUser> {
     throw new Error(tokenJson.error || "GitHub token exchange failed");
   }
   const userResponse = await fetch("https://api.github.com/user", {
-    headers: githubHeaders(tokenJson.access_token),
+    headers: githubApiHeaders(tokenJson.access_token),
   });
   if (!userResponse.ok) throw new Error("GitHub user lookup failed");
   const user = (await userResponse.json()) as {
@@ -84,7 +89,7 @@ export async function exchangeGithubCode(code: string): Promise<GithubUser> {
   let email = user.email;
   if (!email) {
     const emailsResponse = await fetch("https://api.github.com/user/emails", {
-      headers: githubHeaders(tokenJson.access_token),
+      headers: githubApiHeaders(tokenJson.access_token),
     });
     if (emailsResponse.ok) {
       const emails = (await emailsResponse.json()) as Array<{
@@ -96,15 +101,18 @@ export async function exchangeGithubCode(code: string): Promise<GithubUser> {
     }
   }
   return {
-    id: String(user.id),
-    login: user.login,
-    name: user.name,
-    email,
-    avatarUrl: user.avatar_url,
+    accessToken: tokenJson.access_token,
+    profile: {
+      id: String(user.id),
+      login: user.login,
+      name: user.name,
+      email,
+      avatarUrl: user.avatar_url,
+    },
   };
 }
 
-function githubHeaders(token: string): HeadersInit {
+export function githubApiHeaders(token: string): HeadersInit {
   return {
     accept: "application/vnd.github+json",
     authorization: `Bearer ${token}`,

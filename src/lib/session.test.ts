@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { devBypassEnabled, signSession, verifySession } from "@/lib/session";
+import { devBypassEnabled, sessionCookieOptions, signSession, verifySession } from "@/lib/session";
 
 describe("session cookie", () => {
   it("round-trips a signed session and rejects a tampered one", async () => {
@@ -25,5 +25,17 @@ describe("session cookie", () => {
     expect(devBypassEnabled({ NODE_ENV: "development", AUTH_DEV_BYPASS: "1" })).toBe(
       true,
     );
+  });
+
+  it("uses a host-only Lax cookie so the sign-in return from GitHub can send it", () => {
+    expect(sessionCookieOptions(600, "production")).toEqual({
+      httpOnly: true,
+      sameSite: "lax",
+      secure: true,
+      path: "/",
+      maxAge: 600,
+    });
+    expect(sessionCookieOptions(600, "development").secure).toBe(false);
+    expect("domain" in sessionCookieOptions(600, "production")).toBe(false);
   });
 });

@@ -1,4 +1,4 @@
-const RESERVED = new Set([
+export const RESERVED_SUBDOMAINS = new Set([
   "www",
   "beta",
   "app",
@@ -44,7 +44,7 @@ export function resolveHost(
   const docsSuffix = `.${docsRoot}`;
   if (docsRoot && host.endsWith(docsSuffix)) {
     const subdomain = host.slice(0, -docsSuffix.length);
-    if (isSubdomain(subdomain) && !RESERVED.has(subdomain)) {
+    if (isSubdomain(subdomain) && !RESERVED_SUBDOMAINS.has(subdomain)) {
       return { kind: "docs", subdomain };
     }
     return { kind: "app" };

@@ -84,6 +84,19 @@ export async function verifySession(
   }
 }
 
+export function sessionCookieOptions(
+  maxAgeSeconds: number,
+  nodeEnv: string | undefined = process.env.NODE_ENV,
+) {
+  return {
+    httpOnly: true,
+    sameSite: "lax" as const,
+    secure: nodeEnv === "production",
+    path: "/",
+    maxAge: maxAgeSeconds,
+  };
+}
+
 export function devBypassEnabled(
   env: { NODE_ENV?: string; AUTH_DEV_BYPASS?: string } = process.env,
 ): boolean {

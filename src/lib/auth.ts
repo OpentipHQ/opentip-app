@@ -8,20 +8,12 @@ import {
   type Session,
 } from "@/lib/session";
 
+export { sessionCookieOptions } from "@/lib/session";
+
 export async function getRequestSession(): Promise<Session | null> {
   if (devBypassEnabled()) return devSession();
   const secret = sessionSecret();
   if (!secret) return null;
   const jar = await cookies();
   return verifySession(jar.get(SESSION_COOKIE)?.value, secret);
-}
-
-export function sessionCookieOptions(maxAgeSeconds: number) {
-  return {
-    httpOnly: true,
-    sameSite: "lax" as const,
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: maxAgeSeconds,
-  };
 }

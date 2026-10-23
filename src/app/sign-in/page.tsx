@@ -6,6 +6,7 @@ import { devBypassEnabled } from "@/lib/session";
 const errors: Record<string, string> = {
   state: "The sign-in attempt expired. Try again.",
   github: "GitHub did not complete sign-in. Check the app client id and secret.",
+  installation: "That GitHub installation is not available for this account.",
   database: "The database is not connected, so the account could not be saved.",
   session: "SESSION_SECRET is missing.",
 };

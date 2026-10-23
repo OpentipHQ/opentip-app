@@ -122,7 +122,7 @@ Decided 23 Oct 2026.
 - Heavy jobs (first full build, large chat edits over 2,000 characters): xAI `grok-build-0.1`. `grok-4.7` is a config option only, via `XAI_HEAVY_MODEL`. It is not the default.
 - Small jobs (push updates, smaller edits): Groq `openai/gpt-oss-120b` on the paid Developer plan. Override with `GROQ_SMALL_MODEL`.
 - One provider layer: `resolveProvider`. Missing keys use a fake provider in development and tests. Production fails closed.
-- Fake completions cost 0, so local preview does not burn the cap. Real calls use internal USD estimates (`XAI_*_USD_PER_MTOK`, `GROQ_*_USD_PER_MTOK`). Those estimates are for caps, not an invoice.
+- Fake completions cost 0, so local preview does not burn the cap. Real calls use internal USD estimates (`XAI_*_USD_PER_MTOK`, `GROQ_*_USD_PER_MTOK`). Those estimates are for caps, not an invoice. The grok-build-0.1 defaults are $1 per million input tokens and $2 per million output tokens.
 - Before a job runs, reserve an estimate (heavy: 20k prompt and 8k completion tokens, small: 4k and 1.5k). Reject the job when the reserve would pass the per-repo daily cap or the global daily cap.
 - Default caps: $2 per repo per day, $25 global per day. Both are UTC days and are env-configurable.
 - The database path sums `UsageEntry` rows inside a serializable transaction (`reserveDailySpend`) so two jobs cannot both pass a cap they would share.
@@ -136,6 +136,7 @@ Decided 23 Oct 2026.
 - Models: users and admin role, GitHub App installations, repos, sites (subdomain, custom domain, branding), pages, jobs, webhook deliveries, chat edits, Worklog entries, plans, subscriptions, usage entries, beta invites, beta applications, feedback.
 - Plan rows seeded by the migration: Free $0, Pro $20, Team $200. The billing page hides prices unless `SHOW_PLAN_PRICES=1`.
 - GitHub App OAuth sign-in, setup URL, and `POST /api/webhooks/github`. The app slug defaults to `opentip-copilot` (`GITHUB_APP_SLUG`). The install URL is `https://github.com/apps/opentip-copilot/installations/new`.
+- Sign in with GitHub still requires the state cookie (`SameSite=Lax`, path `/`, host-only). Installing the app does not set that cookie. GitHub sends `code`, `installation_id`, and `setup_action` to the callback. That path signs the user in only after the GitHub API says the user token can access the installation, then creates repo and pending site rows.
 - Webhook signature check, idempotent enqueue, uninstall and suspend pause, removed-repo pause, rename, archive, delete, and transfer handling.
 - Copilot provider layer, caps, cached summary helper, and `runCopilotJob`.
 - Dashboard: Sites, Worklog, Usage, Billing. No credit or token figures on those pages.
@@ -149,7 +150,7 @@ Decided 23 Oct 2026.
 
 - The Copilot worker process. Jobs are queued. Nothing runs them on a timer or a container yet.
 - Chat UI, approvals, and the "failed build keeps the live site" publish step. The skip rule for hand edits is a function the worker must call.
-- Creating a site from an installation. The webhook stores the installation and will enqueue a push only after a repo row exists.
+- A first docs build when the app is installed. Install creates the site row. The worker that writes the pages is still not running. A later push can enqueue a job once the repo row exists.
 - Email on uninstall, build failure, approval, or domain status. Beta invite email is the only sender, and it no-ops without Resend.
 - Paddle checkout. Billing explains that checkout is not connected.
 - Tips. No tip button, no tip ledger.
