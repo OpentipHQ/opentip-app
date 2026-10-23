@@ -10,7 +10,7 @@ export default async function UsersPage() {
     <>
       <PageHeader
         title="Users"
-        description="People who signed in with the Opentip GitHub App. Admin is a role on the user row."
+        description="People who signed in with the Opentip Copilot GitHub App. Admin is a role on the user row."
       />
       <RowsTable
         columns={["Login", "Email", "Role", "Joined"]}

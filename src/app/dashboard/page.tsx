@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { getRequestSession } from "@/lib/auth";
-import { docsRootDomain } from "@/lib/config";
+import { docsRootDomain, githubAppInstallUrl } from "@/lib/config";
 import { loadSiteCards } from "@/lib/view-data";
 
 export const dynamic = "force-dynamic";
@@ -37,7 +37,11 @@ export default async function SitesPage() {
           <EmptyHeader>
             <EmptyTitle>No sites yet</EmptyTitle>
             <EmptyDescription>
-              Install the Opentip GitHub App on a repo to create one.
+              Install the Opentip Copilot GitHub App on a repo to create one.{" "}
+              <a href={githubAppInstallUrl()} className="text-primary underline underline-offset-4">
+                Install Opentip Copilot
+              </a>
+              .
             </EmptyDescription>
           </EmptyHeader>
         </Empty>

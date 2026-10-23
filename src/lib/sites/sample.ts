@@ -36,7 +36,7 @@ export function sampleSite(): DocsSite {
         ogImageUrl: null,
         content: [
           "This site is preview data. It is what a customer docs site looks like before a Neon database is connected.",
-          "Opentip writes the docs for a GitHub repo and updates them on every push. The Opentip GitHub App signs people in and receives those pushes.",
+          "Opentip writes the docs for a GitHub repo and updates them on every push. The Opentip Copilot GitHub App signs people in and receives those pushes.",
           "Connect a repository, pick a subdomain, and set a logo, favicon, and primary color. Free sites can use the Ledger or Minimal theme.",
         ].join("\n\n"),
       },

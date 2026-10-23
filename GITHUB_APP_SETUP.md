@@ -1,14 +1,19 @@
-# Register the Opentip GitHub App
+# Register the Opentip Copilot GitHub App
 
 Create this app on the OpentipHQ organization. One app handles sign-in and repository webhooks.
 
+The name Opentip is reserved by another GitHub account. Register the app as Opentip Copilot. The slug is `opentip-copilot`.
+
 Open: https://github.com/organizations/OpentipHQ/settings/apps/new
+
+Install URL, after the app exists: https://github.com/apps/opentip-copilot/installations/new
 
 ## App settings
 
 | Field | Value |
 | --- | --- |
-| GitHub App name | Opentip |
+| GitHub App name | Opentip Copilot |
+| GitHub App slug | opentip-copilot |
 | Description | Writes docs for a repository and updates them on every push. |
 | Homepage URL | https://beta.opentip.tech |
 | Callback URL | https://beta.opentip.tech/api/auth/github/callback |
@@ -24,7 +29,7 @@ Open: https://github.com/organizations/OpentipHQ/settings/apps/new
 | SSL verification | Enabled |
 | Where can this GitHub App be installed? | Any account |
 
-If the name Opentip is already taken on GitHub, stop and tell the team before picking another name. The product name of the app is Opentip.
+After you type the name, confirm GitHub saved the slug as `opentip-copilot`. The install URL uses that slug. The product name stays Opentip. The GitHub App name is Opentip Copilot.
 
 ## Permissions
 
@@ -63,7 +68,7 @@ Those events cover install, uninstall, repo added or removed, push, rename, tran
 6. Create the other secrets in `.env.example`: `XAI_API_KEY`, `GROQ_API_KEY`, `RESEND_API_KEY`, `RESEND_FROM`, `OG_SIGNING_SECRET`, and `SESSION_SECRET`.
 7. Set those variables on the host for beta.opentip.tech.
 8. From this repo, run `npx prisma migrate deploy`.
-9. Install the app on one test repository. GitHub will send the user to the setup URL, then to the dashboard.
+9. Install the app on one test repository from https://github.com/apps/opentip-copilot/installations/new. GitHub will send the user to the setup URL, then to the dashboard.
 10. Push a commit. The webhook should return 200. A second delivery of the same event must not create a second job. Uninstalling the app pauses the site. It does not delete it.
 
 Local webhook checks need a public tunnel to `http://localhost:3000/api/webhooks/github` and a real `DATABASE_URL`. Without a database the route still checks the signature, answers ping, and returns 503 for other events.
