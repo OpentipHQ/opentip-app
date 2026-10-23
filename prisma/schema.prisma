@@ -1,0 +1,315 @@
+// Opentip app schema. Apply with Prisma Migrate only. Do not use db push.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum PlanTier {
+  FREE
+  PRO
+  TEAM
+}
+
+enum SiteStatus {
+  PENDING
+  ACTIVE
+  PAUSED
+}
+
+enum SiteTheme {
+  LEDGER
+  MINIMAL
+}
+
+enum Appearance {
+  SYSTEM
+  LIGHT
+  DARK
+}
+
+enum JobKind {
+  FIRST_BUILD
+  PUSH_UPDATE
+  CHAT_EDIT
+}
+
+enum JobStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+enum JobProvider {
+  XAI
+  GROQ
+  FAKE
+}
+
+enum UsageStatus {
+  RESERVED
+  FINAL
+}
+
+model User {
+  id           String   @id @default(cuid())
+  githubId     String   @unique
+  login        String
+  name         String?
+  email        String?
+  avatarUrl    String?
+  role         UserRole @default(USER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  installations Installation[]
+  sites         Site[]
+  chatEdits     ChatEdit[]
+  feedback      Feedback[]
+  betaInvites   BetaInvite[]
+  subscription  Subscription?
+}
+
+model Installation {
+  id                   String    @id @default(cuid())
+  githubInstallationId String    @unique
+  accountLogin         String
+  accountType          String
+  uninstalledAt        DateTime?
+  suspendedAt          DateTime?
+  userId               String?
+  user                 User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  repos                Repo[]
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+}
+
+model Repo {
+  id              String    @id @default(cuid())
+  installationId  String
+  installation    Installation @relation(fields: [installationId], references: [id], onDelete: Cascade)
+  githubRepoId    String    @unique
+  owner           String
+  name            String
+  fullName        String
+  private         Boolean   @default(false)
+  defaultBranch   String    @default("main")
+  archived        Boolean   @default(false)
+  removed         Boolean   @default(false)
+  summary         String?   @db.Text
+  summarySha      String?
+  summaryCachedAt DateTime?
+  site            Site?
+  jobs            Job[]
+  usage           UsageEntry[]
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([installationId])
+  @@index([fullName])
+}
+
+model Site {
+  id                 String     @id @default(cuid())
+  repoId             String     @unique
+  repo               Repo       @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  ownerId            String
+  owner              User       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name               String
+  subdomain          String     @unique
+  customDomain       String?    @unique
+  customDomainStatus String?
+  status             SiteStatus @default(PENDING)
+  pausedReason       String?
+  theme              SiteTheme  @default(MINIMAL)
+  appearance         Appearance @default(SYSTEM)
+  primaryColor       String     @default("#2A2AD6")
+  logoLightUrl       String?
+  logoDarkUrl        String?
+  faviconUrl         String?
+  logoHref           String?
+  ogBackgroundUrl    String?
+  ogImageUrl         String?
+  description        String?
+  pages              Page[]
+  worklog            WorklogEntry[]
+  chatEdits          ChatEdit[]
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  @@index([ownerId])
+  @@index([status])
+}
+
+model Page {
+  id          String   @id @default(cuid())
+  siteId      String
+  site        Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  slug        String
+  section     String?
+  title       String
+  description String?
+  content     String   @db.Text
+  navOrder    Int      @default(0)
+  handEdited  Boolean  @default(false)
+  published   Boolean  @default(false)
+  noindex     Boolean  @default(false)
+  ogImageUrl  String?
+  chatEdits   ChatEdit[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([siteId, slug])
+  @@index([siteId, published])
+}
+
+model Job {
+  id               String      @id @default(cuid())
+  repoId           String
+  repo             Repo        @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  kind             JobKind
+  status           JobStatus   @default(QUEUED)
+  provider         JobProvider
+  model            String
+  idempotencyKey   String      @unique
+  deliveryId       String?
+  payload          Json?
+  error            String?     @db.Text
+  promptTokens     Int         @default(0)
+  completionTokens Int         @default(0)
+  estimatedCostUsd Decimal     @default(0) @db.Decimal(12, 6)
+  chatEdit         ChatEdit?
+  usage            UsageEntry?
+  createdAt        DateTime    @default(now())
+  startedAt        DateTime?
+  finishedAt       DateTime?
+
+  @@index([repoId, createdAt])
+  @@index([status])
+}
+
+model WebhookDelivery {
+  id         String   @id
+  event      String
+  action     String?
+  jobId      String?
+  receivedAt DateTime @default(now())
+
+  @@index([receivedAt])
+}
+
+model ChatEdit {
+  id          String   @id @default(cuid())
+  siteId      String
+  site        Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  pageId      String?
+  page        Page?    @relation(fields: [pageId], references: [id], onDelete: SetNull)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  instruction String   @db.Text
+  jobId       String?  @unique
+  job         Job?     @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+}
+
+model WorklogEntry {
+  id          String   @id @default(cuid())
+  siteId      String
+  site        Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  title       String
+  body        String   @db.Text
+  source      String   @default("manual")
+  publishedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  @@index([siteId, publishedAt])
+}
+
+model Plan {
+  id              String   @id
+  tier            PlanTier @unique
+  name            String
+  priceCents      Int
+  customDomain    Boolean  @default(false)
+  dailyRepoCapUsd Decimal  @db.Decimal(12, 4)
+  subscriptions   Subscription[]
+}
+
+model Subscription {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planId    String
+  plan      Plan     @relation(fields: [planId], references: [id])
+  status    String   @default("beta")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model UsageEntry {
+  id               String      @id @default(cuid())
+  repoId           String
+  repo             Repo        @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  jobId            String?     @unique
+  job              Job?        @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  day              DateTime    @db.Date
+  provider         JobProvider
+  model            String
+  status           UsageStatus @default(RESERVED)
+  promptTokens     Int         @default(0)
+  completionTokens Int         @default(0)
+  estimatedCostUsd Decimal     @db.Decimal(12, 6)
+  createdAt        DateTime    @default(now())
+
+  @@index([repoId, day])
+  @@index([day])
+}
+
+model BetaInvite {
+  id         String    @id @default(cuid())
+  email      String
+  wave       Int       @default(1)
+  token      String    @unique
+  userId     String?
+  user       User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  sentAt     DateTime?
+  acceptedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([email])
+  @@index([wave])
+}
+
+model BetaApplication {
+  id          String   @id @default(cuid())
+  email       String
+  githubLogin String?
+  xHandle     String?
+  priceAnswer String?
+  status      String   @default("pending")
+  createdAt   DateTime @default(now())
+
+  @@index([status])
+}
+
+model Feedback {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  siteId    String?
+  message   String   @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
