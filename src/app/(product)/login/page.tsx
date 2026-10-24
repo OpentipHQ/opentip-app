@@ -1,4 +1,5 @@
 import { AuthScreen } from "@/components/auth/auth-screen";
+import { redirectAuthenticatedEntry } from "@/lib/auth/entry";
 import { safeRelativePath } from "@/lib/auth/gate";
 import { authErrors, installNotice } from "@/lib/auth/messages";
 
@@ -9,6 +10,7 @@ export default async function LoginPage({
 }: {
   searchParams: Promise<{ error?: string; next?: string; invite?: string; from?: string }>;
 }) {
+  await redirectAuthenticatedEntry();
   const params = await searchParams;
   const next = safeRelativePath(params.next, "");
   const query = new URLSearchParams();

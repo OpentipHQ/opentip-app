@@ -2,7 +2,7 @@ import type { ShellItem } from "@/components/shell/app-shell";
 
 export const dashboardNav: ShellItem[] = [
   { href: "/dashboard", label: "Sites" },
-  { href: "/dashboard/worklog", label: "Worklog" },
+  { href: "/dashboard/worklog", label: "Changelog" },
   { href: "/dashboard/usage", label: "Usage" },
   { href: "/dashboard/billing", label: "Billing" },
 ];

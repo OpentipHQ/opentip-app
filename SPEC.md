@@ -2,7 +2,7 @@
 
 Status: 23 Oct 2026. This file is the source of truth for OpentipHQ/opentip-app. Update it when a decision changes.
 
-Opentip is a hosted docs and Worklog platform. Opentip Copilot writes docs for a GitHub repo and updates them on every push through one GitHub App. The GitHub App is named Opentip Copilot because the name Opentip is reserved by another account. Its slug is `opentip-copilot`. The install URL is https://github.com/apps/opentip-copilot/installations/new. The beta app is served at beta.opentip.tech. The marketing site stays at opentip.tech in the other repository.
+Opentip is a hosted docs and Changelog platform. Opentip Copilot writes docs for a GitHub repo and updates them on every push through one GitHub App. The GitHub App is named Opentip Copilot because the name Opentip is reserved by another account. Its slug is `opentip-copilot`. The install URL is https://github.com/apps/opentip-copilot/installations/new. The beta app is served at beta.opentip.tech. The marketing site stays at opentip.tech in the other repository.
 
 The word for money a person sends a project is tip. The only assets are ETH and USDC. Tipping itself is out of scope until a later phase. Do not invent brand facts that are not in this file or in the product decisions below.
 
@@ -56,9 +56,9 @@ Beta access is sent by email. The beta app is beta.opentip.tech.
 - Canonical link from the subdomain to the custom domain once the custom domain is active.
 - Noindex on preview builds (`Page.noindex`) and on paused sites.
 
-### Phase 4, Worklog, money, and admin
+### Phase 4, Changelog, money, and admin
 
-- Carry over the existing Worklog code, including the PR #34 fix. This foundation has the schema and a read-only list.
+- Carry over the existing Changelog code, including the PR #34 fix. This foundation has the schema and a read-only list.
 - Optional tip button under a Money section. ETH and USDC only. Tip fees unchanged. Not in this release.
 - Admin, the nine items that were written down: applications, users, usage and costs, jobs, plans and limits, feedback, tips overview, invite waves, GitHub App installs. Thirteen features were approved and only these nine are recorded. Do not invent the other four.
 - Takedown tools for abuse reports.
@@ -87,7 +87,7 @@ Beta access is sent by email. The beta app is beta.opentip.tech.
 - `llms.txt` per site.
 - AI crawler opt-out (Content-Signal in robots.txt).
 - Public API and webhooks for customers.
-- Limit of 3 Worklog updates a day.
+- Limit of 3 Changelog updates a day.
 - Private docs behind sign-in as a paid feature.
 - Code with comments that are not in English.
 
@@ -133,7 +133,7 @@ Decided 23 Oct 2026.
 
 - Next.js App Router, TypeScript, Tailwind, shadcn.
 - Prisma schema and a SQL migration. Apply it with `prisma migrate deploy`. Do not use `db push`.
-- Models: users and admin role, GitHub App installations, repos, sites (subdomain, custom domain, branding), pages, jobs, webhook deliveries, chat edits, Worklog entries, plans, subscriptions, usage entries, beta invites, beta applications, feedback.
+- Models: users and admin role, GitHub App installations, repos, sites (subdomain, custom domain, branding), pages, jobs, webhook deliveries, chat edits, Changelog entries, plans, subscriptions, usage entries, beta invites, beta applications, feedback.
 - Plan rows seeded by the migration: Free $0, Pro $20, Team $200. The billing page hides prices unless `SHOW_PLAN_PRICES=1`.
 - Closed beta. `/sign-up` and `/login` offer GitHub or a 6-digit email code. Codes expire in 10 minutes, are stored hashed, and stop after 5 attempts. Resend waits 60 seconds. There are no passwords and no magic links.
 - An email can sign in only after it is on `BetaAccess`, or listed in `ADMIN_EMAILS`. Approving a beta application in admin adds a `BetaAccess` row. Emails in `ADMIN_EMAILS` are approved and receive the admin role the next time they sign in, which bootstraps the first admin. An unapproved email sees `/waitlist` and gets no session.
@@ -142,7 +142,7 @@ Decided 23 Oct 2026.
 - GitHub App OAuth, setup URL, and `POST /api/webhooks/github`. The app slug defaults to `opentip-copilot` (`GITHUB_APP_SLUG`). The install URL is `https://github.com/apps/opentip-copilot/installations/new`.
 - Webhook signature check, idempotent enqueue, uninstall and suspend pause, removed-repo pause, rename, archive, delete, and transfer handling.
 - Copilot provider layer, caps, cached summary helper, and `runCopilotJob`.
-- Dashboard: Sites, Worklog, Usage, Billing. No credit or token figures on those pages.
+- Dashboard: Sites, Changelog, Usage, Billing. No credit or token figures on those pages.
 - Admin shell for the nine recorded areas. Tips is a placeholder. Takedown tools are not built.
 - Public docs on `{subdomain}.opentip.tech` and on `{subdomain}.{APP_HOST}` (so `ledger.beta.opentip.tech` works during beta). Custom domains rewrite to the same renderer.
 - Per-site branding, Ledger and Minimal, the corner pill, signed OG images, sitemap, robots.txt, canonical tags, noindex when paused or `Page.noindex`.
@@ -157,7 +157,7 @@ Decided 23 Oct 2026.
 - Paddle checkout. Billing explains that checkout is not connected.
 - Tips. No tip button, no tip ledger.
 - Custom domain HTTPS provisioning and status polling. The columns exist. The certificate flow does not.
-- Worklog composer. The page lists entries.
+- Changelog composer. The page lists entries.
 - Copying /beta applications from the marketing database into `BetaApplication`.
 - Docs search, monorepo picker, export, deletion grace period, abuse reports, and `llms.txt`.
 - The four unrecorded admin features. They are not guessed.

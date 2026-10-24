@@ -29,18 +29,58 @@ describe("installation API", () => {
     expect(installationFromApi("99", { id: 99 })).toBeNull();
   });
 
-  it("reads the installation with the user token and treats 404 as inaccessible", async () => {
+  it("accepts a personal install and an org install a member can access", async () => {
     const fetcher = vi.fn(async (url: string | URL | Request) => {
-      expect(String(url)).toBe("https://api.github.com/user/installations/99");
-      return jsonResponse({ id: 99, account: { login: "acme", type: "Organization" } });
+      expect(String(url)).toBe("https://api.github.com/user/installations?per_page=100");
+      return jsonResponse({
+        installations: [
+          { id: 7, account: { login: "ada", type: "User" } },
+          { id: 99, account: { login: "Opentip", type: "Organization" } },
+        ],
+      });
+    });
+    await expect(readUserInstallation("7", "token", fetcher as typeof fetch)).resolves.toEqual({
+      githubInstallationId: "7",
+      accountLogin: "ada",
+      accountType: "User",
     });
     await expect(readUserInstallation("99", "token", fetcher as typeof fetch)).resolves.toEqual({
       githubInstallationId: "99",
-      accountLogin: "acme",
+      accountLogin: "Opentip",
       accountType: "Organization",
     });
+  });
+
+  it("blocks an org install that is absent from the user's list", async () => {
+    const fetcher = vi.fn(async () =>
+      jsonResponse({
+        installations: [{ id: 7, account: { login: "ada", type: "User" } }],
+      }),
+    );
+    await expect(readUserInstallation("99", "token", fetcher as typeof fetch)).resolves.toBeNull();
     const denied = vi.fn(async () => jsonResponse({ message: "Not Found" }, 404));
     await expect(readUserInstallation("99", "token", denied as typeof fetch)).resolves.toBeNull();
+  });
+
+  it("follows later pages to find an org install", async () => {
+    const fetcher = vi.fn(async (url: string | URL | Request) => {
+      if (String(url).includes("page=2")) {
+        return jsonResponse({
+          installations: [{ id: 99, account: { login: "Opentip", type: "Organization" } }],
+        });
+      }
+      return jsonResponse(
+        { installations: [{ id: 7, account: { login: "ada", type: "User" } }] },
+        200,
+        '<https://api.github.com/user/installations?per_page=100&page=2>; rel="next"',
+      );
+    });
+    await expect(readUserInstallation("99", "token", fetcher as typeof fetch)).resolves.toEqual({
+      githubInstallationId: "99",
+      accountLogin: "Opentip",
+      accountType: "Organization",
+    });
+    await expect(readUserInstallation("404", "token", fetcher as typeof fetch)).resolves.toBeNull();
   });
 
   it("follows only GitHub API next links and skips incomplete repos", async () => {

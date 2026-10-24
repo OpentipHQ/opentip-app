@@ -11,6 +11,7 @@ export const metadata: Metadata = {
     apple: [{ url: "/icons/icon-180.png", sizes: "180x180" }],
   },
   openGraph: {
+    description: "Hosted docs and a Changelog for GitHub repos.",
     images: [{ url: "/brand/og.png", width: 1200, height: 630 }],
   },
 };

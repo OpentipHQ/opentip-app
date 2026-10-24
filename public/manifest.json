@@ -2,7 +2,7 @@
   "name": "Opentip",
   "short_name": "Opentip",
   "id": "/",
-  "description": "Opentip writes docs for a GitHub repo and updates them on every push.",
+  "description": "Hosted docs and a Changelog for GitHub repos.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#FAFAFA",
