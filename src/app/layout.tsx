@@ -21,7 +21,10 @@ export const metadata: Metadata = {
     default: "Opentip",
     template: "%s · Opentip",
   },
-  description: "Opentip writes docs for a GitHub repo and updates them on every push.",
+  description: "Hosted docs and a Changelog for GitHub repos.",
+  openGraph: {
+    description: "Hosted docs and a Changelog for GitHub repos.",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

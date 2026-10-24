@@ -15,8 +15,8 @@ export default async function WorklogPage() {
   return (
     <>
       <PageHeader
-        title="Worklog"
-        description="Notes published alongside a docs site. Writing new entries from here arrives with the Worklog carry-over."
+        title="Changelog"
+        description="Notes published alongside a docs site. Writing new entries from here arrives with the Changelog carry-over."
       />
       {!connected ? (
         <Alert>
@@ -27,7 +27,7 @@ export default async function WorklogPage() {
       {entries.length === 0 ? (
         <Empty className="border border-border bg-card">
           <EmptyHeader>
-            <EmptyTitle>No Worklog entries</EmptyTitle>
+            <EmptyTitle>No Changelog entries</EmptyTitle>
             <EmptyDescription>Entries for your sites will list here.</EmptyDescription>
           </EmptyHeader>
         </Empty>

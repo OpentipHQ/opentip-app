@@ -76,17 +76,30 @@ export function nextGithubPage(link: string | null): string | null {
   return null;
 }
 
+const INSTALLATION_PAGE_LIMIT = 10;
+
+// GitHub's user-token check is the paginated list, not
+// GET /user/installations/{id}. That single route is not the access check, and
+// it does not return an organization installation. The list includes a personal
+// install and an org install the user can access through membership. An install
+// that never appears is one this account cannot access.
 export async function readUserInstallation(
   installationId: string,
   accessToken: string,
   fetcher: typeof fetch = fetch,
 ): Promise<VerifiedInstallation | null> {
-  const response = await fetcher(
-    `https://api.github.com/user/installations/${installationId}`,
-    { headers: githubApiHeaders(accessToken) },
-  );
-  if (!response.ok) return null;
-  return installationFromApi(installationId, await response.json());
+  let url: string | null = "https://api.github.com/user/installations?per_page=100";
+  for (let page = 0; page < INSTALLATION_PAGE_LIMIT && url; page += 1) {
+    const response = await fetcher(url, { headers: githubApiHeaders(accessToken) });
+    if (!response.ok) return null;
+    const body = (await response.json()) as { installations?: unknown[] };
+    for (const item of body.installations ?? []) {
+      const installation = installationFromApi(installationId, item);
+      if (installation) return installation;
+    }
+    url = nextGithubPage(response.headers.get("link"));
+  }
+  return null;
 }
 
 export async function listInstallationRepositories(

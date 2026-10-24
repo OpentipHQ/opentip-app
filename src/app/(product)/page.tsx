@@ -1,13 +1,17 @@
 import Link from "next/link";
 import { OpentipLockup } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
+import { redirectAuthenticatedEntry } from "@/lib/auth/entry";
 
-export default function HomePage() {
+export const dynamic = "force-dynamic";
+
+export default async function HomePage() {
+  await redirectAuthenticatedEntry();
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col justify-center gap-8 px-6 py-16">
       <OpentipLockup href="/" mark={28} />
       <div className="flex flex-col gap-3">
-        <h1 className="text-4xl tracking-tight">Hosted docs and a Worklog for a GitHub repo.</h1>
+        <h1 className="text-4xl tracking-tight">Hosted docs and a Changelog for GitHub repos.</h1>
         <p className="max-w-xl text-base leading-7 text-muted-foreground">
           Opentip writes the docs and updates them on every push. The beta app lives at beta.opentip.tech.
         </p>

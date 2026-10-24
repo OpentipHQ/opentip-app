@@ -1,6 +1,6 @@
 # Opentip app
 
-Hosted docs and a Worklog. Opentip writes docs for a GitHub repo and updates them on every push. The same GitHub App, named Opentip Copilot, signs people in and receives webhooks. Install it at https://github.com/apps/opentip-copilot/installations/new.
+Hosted docs and a Changelog. Opentip writes docs for a GitHub repo and updates them on every push. The same GitHub App, named Opentip Copilot, signs people in and receives webhooks. Install it at https://github.com/apps/opentip-copilot/installations/new.
 
 The beta app is https://beta.opentip.tech. Product decisions live in [SPEC.md](SPEC.md). GitHub App registration steps for the OpentipHQ org live in [GITHUB_APP_SETUP.md](GITHUB_APP_SETUP.md).
 
@@ -59,7 +59,7 @@ Without `XAI_API_KEY` or `GROQ_API_KEY`, Copilot uses a fake provider in develop
 - `src/lib/copilot` chooses xAI `grok-build-0.1` or Groq `gpt-oss-120b`, checks daily caps, and caches repo summaries.
 - `src/app/api/og` renders the signed social image.
 - `src/proxy.ts` sends `{subdomain}.opentip.tech` at the docs renderer and keeps `/dashboard` and `/admin` signed in.
-- `src/app/dashboard` is Sites, Worklog, Usage, and Billing.
+- `src/app/dashboard` is Sites, Changelog, Usage, and Billing.
 - `src/app/admin` is the admin shell.
 
 ## Tests

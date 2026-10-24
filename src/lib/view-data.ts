@@ -105,7 +105,7 @@ export async function loadWorklog(session: Session): Promise<{
           id: "preview_worklog",
           siteName: "Sample",
           title: "Preview entry",
-          body: "This Worklog entry is preview data. It is shown when the database is not connected.",
+          body: "This Changelog entry is preview data. It is shown when the database is not connected.",
           publishedAt: "2026-10-23T00:00:00.000Z",
           preview: true,
         },
