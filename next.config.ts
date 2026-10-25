@@ -7,6 +7,13 @@ const nextConfig: NextConfig = {
   // Next blocks the dev client and clicks (the mobile menu) do nothing.
   allowedDevOrigins: ["127.0.0.1"],
   devIndicators: false,
+  experimental: {
+    // Profile uploads are capped at 2 MB by application validation. Leave
+    // room for multipart boundaries and part headers.
+    serverActions: {
+      bodySizeLimit: "3mb",
+    },
+  },
   turbopack: {
     rules: {
       "*.css": {

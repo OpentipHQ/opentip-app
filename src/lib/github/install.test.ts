@@ -24,6 +24,7 @@ describe("installation API", () => {
       githubInstallationId: "99",
       accountLogin: "ada",
       accountType: "User",
+      accountAvatarUrl: null,
     });
     expect(installationFromApi("99", { id: 100, account: { login: "ada", type: "User" } })).toBeNull();
     expect(installationFromApi("99", { id: 99 })).toBeNull();
@@ -43,11 +44,13 @@ describe("installation API", () => {
       githubInstallationId: "7",
       accountLogin: "ada",
       accountType: "User",
+      accountAvatarUrl: null,
     });
     await expect(readUserInstallation("99", "token", fetcher as typeof fetch)).resolves.toEqual({
       githubInstallationId: "99",
       accountLogin: "Opentip",
       accountType: "Organization",
+      accountAvatarUrl: null,
     });
   });
 
@@ -79,6 +82,7 @@ describe("installation API", () => {
       githubInstallationId: "99",
       accountLogin: "Opentip",
       accountType: "Organization",
+      accountAvatarUrl: null,
     });
     await expect(readUserInstallation("404", "token", fetcher as typeof fetch)).resolves.toBeNull();
   });
@@ -123,19 +127,17 @@ describe("install sites", () => {
     expect(subdomainCandidates("api", "", "12")).toEqual(["api-12", "r12"]);
   });
 
-  it("creates a site for a new repo and skips one that already has a site", async () => {
-    const sites: string[] = [];
+  it("stores the installation and repos without creating sites", async () => {
+    const saved: string[] = [];
+    let installationUser = "";
     const store: InstallationStore = {
-      async saveInstallation() {
+      async saveInstallation(input) {
+        installationUser = input.userId;
         return { id: "inst_1" };
       },
       async saveRepo(input) {
-        return { id: `repo_${input.githubRepoId}`, hasSite: input.githubRepoId === "2" };
-      },
-      async saveSite(input) {
-        if (input.subdomain === "ada-docs") return "taken";
-        sites.push(input.subdomain);
-        return "created";
+        saved.push(`${input.installationId}:${input.githubRepoId}`);
+        return { id: `repo_${input.githubRepoId}` };
       },
     };
     const created = await linkInstallationRecords(store, {
@@ -162,7 +164,8 @@ describe("install sites", () => {
         },
       ],
     });
-    expect(created).toEqual({ sitesCreated: 1 });
-    expect(sites).toEqual(["ada-docs-7"]);
+    expect(created).toEqual({ sitesCreated: 0 });
+    expect(installationUser).toBe("user_1");
+    expect(saved).toEqual(["inst_1:7", "inst_1:2"]);
   });
 });

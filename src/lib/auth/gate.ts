@@ -15,6 +15,7 @@ export type SessionDraft = {
   role: "USER" | "ADMIN";
   email: string | null;
   githubId: string | null;
+  sv: number;
 };
 
 export type PendingSnapshot = {
@@ -102,6 +103,7 @@ function toSession(user: ExistingUser): SessionDraft {
     role: user.role,
     email: user.email,
     githubId: user.githubId,
+    sv: user.sessionVersion,
   };
 }
 
@@ -112,7 +114,16 @@ export async function applyGithubGate(
 ): Promise<GateOutcome> {
   const email = normalizeEmail(result.profile.email ?? "");
   const pending = snapshotOf(result, email);
-  const approved = email ? await deps.hasAccess(email) : false;
+  const [byGithub, byEmail] = await Promise.all([
+    deps.findUserByGithubId(result.profile.id),
+    email ? deps.findUserByEmail(email) : Promise.resolve(null),
+  ]);
+  const accountEmail = byGithub && (!byEmail || byEmail.id === byGithub.id) ? byGithub.email : null;
+  const approved = accountEmail
+    ? await deps.hasAccess(accountEmail)
+    : email
+      ? await deps.hasAccess(email)
+      : false;
   const none = {
     session: null,
     sitesCreated: 0,
@@ -148,8 +159,6 @@ export async function applyGithubGate(
     email,
     avatarUrl: result.profile.avatarUrl,
   };
-  const byGithub = await deps.findUserByGithubId(profile.githubId ?? "");
-  const byEmail = await deps.findUserByEmail(email);
   const decision = decideAccountLink({ profile, byGithub, byEmail });
   if (decision.kind === "conflict") {
     const selector = pending ? await deps.savePending(pending) : null;
@@ -164,6 +173,9 @@ export async function applyGithubGate(
     decision.kind === "create"
       ? await deps.createUser(decision.data)
       : await deps.updateUser(decision.id, decision.data);
+  if (user.suspendedAt) {
+    return { ...none, redirect: "/login?error=suspended", clearSession: true };
+  }
 
   let sitesCreated = 0;
   let consumedPending = false;

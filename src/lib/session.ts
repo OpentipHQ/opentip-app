@@ -6,6 +6,8 @@ export type Session = {
   name: string | null;
   role: SessionRole;
   exp: number;
+  sv?: number;
+  actorId?: string;
 };
 
 export const SESSION_COOKIE = "opentip_session";
@@ -77,6 +79,8 @@ export async function verifySession(
     const parsed = JSON.parse(new TextDecoder().decode(jsonBytes)) as Session;
     if (!parsed.userId || !parsed.login || !parsed.exp) return null;
     if (parsed.role !== "USER" && parsed.role !== "ADMIN") return null;
+    if (parsed.sv !== undefined && (!Number.isInteger(parsed.sv) || parsed.sv < 0)) return null;
+    if (parsed.actorId !== undefined && typeof parsed.actorId !== "string") return null;
     if (parsed.exp <= now) return null;
     return parsed;
   } catch {
@@ -97,5 +101,6 @@ export function devSession(now = Date.now()): Session {
     name: "Dev preview",
     role: "ADMIN",
     exp: now + 1000 * 60 * 60,
+    sv: 0,
   };
 }

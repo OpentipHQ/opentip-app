@@ -5,6 +5,7 @@ import type {
   WebhookResult,
 } from "@/lib/github/types";
 import { DEFAULT_SMALL_MODEL } from "@/lib/copilot/models";
+import { repoSeedFromApi } from "@/lib/github/install";
 
 type Payload = {
   action?: string;
@@ -24,6 +25,7 @@ type Payload = {
     owner?: { login?: string };
   };
   repositories_removed?: Array<{ id?: number | string }>;
+  repositories_added?: unknown[];
 };
 
 function idOf(value: number | string | undefined): string | null {
@@ -83,8 +85,18 @@ export async function handleGithubWebhook(args: {
         ...outcome,
       },
     };
-  } catch {
+  } catch (error) {
     await args.repo.releaseDelivery(args.headers.deliveryId);
+    try {
+      await args.repo.recordError({
+        deliveryId: args.headers.deliveryId,
+        event: args.headers.event,
+        action,
+        message: error instanceof Error ? error.message.slice(0, 2000) : "unknown",
+      });
+    } catch {
+      // Logging must not mask the original webhook failure.
+    }
     return { status: 500, body: { ok: false, error: "processing_failed" } };
   }
 }
@@ -125,12 +137,22 @@ async function applyEvent(args: {
     return { ignored: true };
   }
 
-  if (args.event === "installation_repositories" && args.action === "removed") {
-    const ids = (args.payload.repositories_removed ?? [])
-      .map((repo) => idOf(repo.id))
-      .filter((id): id is string => Boolean(id));
-    const paused = await args.repo.pauseRepos(ids, "repo_removed");
-    return { paused };
+  if (args.event === "installation_repositories") {
+    const installationId = idOf(args.payload.installation?.id);
+    if (args.action === "removed") {
+      const ids = (args.payload.repositories_removed ?? [])
+        .map((repo) => idOf(repo.id))
+        .filter((id): id is string => Boolean(id));
+      const paused = await args.repo.pauseRepos(ids, "repo_removed");
+      return { paused };
+    }
+    if (args.action === "added" && installationId) {
+      const repos = (args.payload.repositories_added ?? [])
+        .map((repo) => repoSeedFromApi(repo))
+        .filter((repo) => repo !== null);
+      await args.repo.addRepos(installationId, repos);
+      return { ignored: true };
+    }
   }
 
   if (args.event === "push") {

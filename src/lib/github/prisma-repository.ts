@@ -112,6 +112,46 @@ export function createPrismaWebhookRepository(): WebhookRepository | null {
       });
       return paused.count;
     },
+    async addRepos(githubInstallationId, repos) {
+      const installation = await prisma.installation.findUnique({
+        where: { githubInstallationId },
+        select: { id: true },
+      });
+      if (!installation) return 0;
+      let added = 0;
+      for (const repo of repos) {
+        await prisma.repo.upsert({
+          where: { githubRepoId: repo.githubRepoId },
+          create: {
+            installationId: installation.id,
+            githubRepoId: repo.githubRepoId,
+            owner: repo.owner,
+            name: repo.name,
+            fullName: repo.fullName,
+            private: repo.private,
+            defaultBranch: repo.defaultBranch,
+            archived: repo.archived,
+            pushedAt: repo.pushedAt ?? null,
+          },
+          update: {
+            installationId: installation.id,
+            owner: repo.owner,
+            name: repo.name,
+            fullName: repo.fullName,
+            private: repo.private,
+            defaultBranch: repo.defaultBranch,
+            archived: repo.archived,
+            pushedAt: repo.pushedAt ?? null,
+            removed: false,
+          },
+        });
+        added += 1;
+      }
+      return added;
+    },
+    async recordError(input) {
+      await prisma.webhookError.create({ data: input });
+    },
     async upsertInstallation(input) {
       await prisma.installation.upsert({
         where: { githubInstallationId: input.githubInstallationId },

@@ -6,6 +6,7 @@ export const authErrors: Record<string, string> = {
   installation: "That GitHub installation is not available for this account.",
   email: "GitHub did not share a verified email.",
   conflict: "That email is already linked to a different GitHub account.",
+  suspended: "This account is suspended.",
   expired: "That code expired. Send a new one.",
   wrong: "That code is wrong.",
   too_many: "Too many attempts. Send a new code.",

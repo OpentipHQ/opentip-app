@@ -62,23 +62,36 @@ enum UsageStatus {
   FINAL
 }
 
-model User {
-  id           String   @id @default(cuid())
-  githubId     String?  @unique
-  login        String
-  name         String?
-  email        String?  @unique
-  avatarUrl    String?
-  role         UserRole @default(USER)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+enum AlertKind {
+  DAILY_TOTAL
+  USER_OUTLIER
+}
 
-  installations Installation[]
-  sites         Site[]
-  chatEdits     ChatEdit[]
-  feedback      Feedback[]
-  betaInvites   BetaInvite[]
-  subscription  Subscription?
+model User {
+  id                String   @id @default(cuid())
+  githubId          String?  @unique
+  login             String
+  name              String?
+  email             String?  @unique
+  avatarUrl         String?
+  imageUrl          String?
+  role              UserRole @default(USER)
+  emailSignInEnabled Boolean @default(true)
+  sessionVersion    Int      @default(0)
+  suspendedAt       DateTime?
+  creditUsd         Decimal  @default(0) @db.Decimal(12, 4)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  installations      Installation[]
+  sites              Site[]
+  chatEdits          ChatEdit[]
+  feedback           Feedback[]
+  betaInvites        BetaInvite[]
+  subscription       Subscription?
+  activityLogs       ActivityLog[]  @relation("ActivityActor")
+  announcements      Announcement[] @relation("AnnouncementAuthor")
+  loginCodes         LoginCode[]
 }
 
 model Installation {
@@ -86,6 +99,7 @@ model Installation {
   githubInstallationId String    @unique
   accountLogin         String
   accountType          String
+  accountAvatarUrl     String?
   uninstalledAt        DateTime?
   suspendedAt          DateTime?
   userId               String?
@@ -110,6 +124,7 @@ model Repo {
   summary         String?   @db.Text
   summarySha      String?
   summaryCachedAt DateTime?
+  pushedAt        DateTime?
   site            Site?
   jobs            Job[]
   usage           UsageEntry[]
@@ -209,6 +224,17 @@ model WebhookDelivery {
   @@index([receivedAt])
 }
 
+model WebhookError {
+  id         String   @id @default(cuid())
+  deliveryId String
+  event      String
+  action     String?
+  message    String   @db.Text
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+}
+
 model ChatEdit {
   id          String   @id @default(cuid())
   siteId      String
@@ -291,6 +317,7 @@ model BetaInvite {
   @@index([wave])
 }
 
+// Legacy local applications table. Admin reads the marketing beta_application table.
 model BetaApplication {
   id          String   @id @default(cuid())
   email       String
@@ -305,7 +332,7 @@ model BetaApplication {
 }
 
 // One row per email that may sign in during the closed beta.
-// Approving a BetaApplication upserts this row. Invites do the same.
+// Approving a marketing beta application upserts this row. Invites do the same.
 model BetaAccess {
   id            String           @id @default(cuid())
   email         String           @unique
@@ -315,11 +342,23 @@ model BetaAccess {
   createdAt     DateTime         @default(now())
 }
 
+// Product email preferences, keyed by the normalized address.
+// Transactional email ignores this table. Announcement email does not.
+model EmailPreference {
+  email         String   @id
+  announcements Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
 // Hashed 6-digit sign-in codes. The plaintext code is never stored.
 model LoginCode {
   id         String    @id @default(cuid())
   email      String
   codeHash   String
+  purpose    String    @default("signin")
+  userId     String?
+  user       User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt  DateTime
   attempts   Int       @default(0)
   consumedAt DateTime?
@@ -327,6 +366,7 @@ model LoginCode {
   createdAt  DateTime  @default(now())
 
   @@index([email, createdAt])
+  @@index([userId, purpose, createdAt])
 }
 
 // Installations that arrived from GitHub before an approved session existed.
@@ -357,4 +397,47 @@ model Feedback {
   createdAt DateTime @default(now())
 
   @@index([createdAt])
+}
+
+model ActivityLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actor      User?    @relation("ActivityActor", fields: [actorId], references: [id], onDelete: SetNull)
+  actorEmail String?
+  action     String
+  targetType String?
+  targetId   String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([actorId])
+}
+
+model Announcement {
+  id                String   @id @default(cuid())
+  title             String
+  body              String   @db.Text
+  active            Boolean  @default(true)
+  emailRequested    Boolean  @default(false)
+  emailSentAt       DateTime?
+  emailRecipientCount Int    @default(0)
+  authorId          String?
+  author            User?    @relation("AnnouncementAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([active, createdAt])
+}
+
+model SpendAlert {
+  id        String    @id @default(cuid())
+  scopeKey  String    @unique
+  kind      AlertKind
+  day       DateTime  @db.Date
+  userId    String?
+  amountUsd Decimal   @db.Decimal(12, 6)
+  createdAt DateTime  @default(now())
+
+  @@index([day])
 }

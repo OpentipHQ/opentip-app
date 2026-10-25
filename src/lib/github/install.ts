@@ -4,6 +4,7 @@ export type VerifiedInstallation = {
   githubInstallationId: string;
   accountLogin: string;
   accountType: string;
+  accountAvatarUrl?: string | null;
 };
 
 export type RepoSeed = {
@@ -14,6 +15,7 @@ export type RepoSeed = {
   private: boolean;
   defaultBranch: string;
   archived: boolean;
+  pushedAt?: Date | null;
 };
 
 export function installationFromApi(
@@ -21,17 +23,22 @@ export function installationFromApi(
   value: unknown,
 ): VerifiedInstallation | null {
   if (!value || typeof value !== "object") return null;
-  const body = value as { id?: unknown; account?: { login?: unknown; type?: unknown } };
+  const body = value as {
+    id?: unknown;
+    account?: { login?: unknown; type?: unknown; avatar_url?: unknown };
+  };
   const id = body.id;
   const got = typeof id === "number" ? String(id) : typeof id === "string" ? id : "";
   if (got !== installationId) return null;
   const login = body.account?.login;
   if (typeof login !== "string" || login.length === 0) return null;
   const accountType = body.account?.type;
+  const avatarUrl = body.account?.avatar_url;
   return {
     githubInstallationId: installationId,
     accountLogin: login,
     accountType: typeof accountType === "string" && accountType ? accountType : "User",
+    accountAvatarUrl: typeof avatarUrl === "string" ? avatarUrl : null,
   };
 }
 
@@ -44,6 +51,7 @@ export function repoSeedFromApi(value: unknown): RepoSeed | null {
     private?: unknown;
     default_branch?: unknown;
     archived?: unknown;
+    pushed_at?: unknown;
     owner?: { login?: unknown };
   };
   const githubRepoId =
@@ -63,6 +71,10 @@ export function repoSeedFromApi(value: unknown): RepoSeed | null {
     defaultBranch:
       typeof repo.default_branch === "string" && repo.default_branch ? repo.default_branch : "main",
     archived: repo.archived === true,
+    pushedAt:
+      typeof repo.pushed_at === "string" && repo.pushed_at
+        ? new Date(repo.pushed_at)
+        : null,
   };
 }
 

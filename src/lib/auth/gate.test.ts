@@ -40,10 +40,10 @@ function deps(overrides: Partial<GateDeps> = {}): GateDeps {
     hasAccess: async () => true,
     findUserByGithubId: async () => null,
     findUserByEmail: async () => null,
-    createUser: vi.fn(async (profile) => ({ id: "user_1", role: "USER" as const, ...profile })),
-    updateUser: async (id, profile) => ({ id, role: "USER", ...profile }),
+    createUser: vi.fn(async (profile) => ({ id: "user_1", role: "USER" as const, sessionVersion: 0, suspendedAt: null, ...profile })),
+    updateUser: async (id, profile) => ({ id, role: "USER", sessionVersion: 0, suspendedAt: null, ...profile }),
     savePending: vi.fn(async () => "selector"),
-    link: vi.fn(async () => ({ sitesCreated: 1 })),
+    link: vi.fn(async () => ({ sitesCreated: 0 })),
     takePending: async () => null,
     markPendingConsumed: vi.fn(async () => undefined),
     existingSession: null,
@@ -87,6 +87,7 @@ describe("beta gate for GitHub", () => {
         role: "USER",
         email: "ada@example.com",
         githubId: "42",
+        sv: 0,
       },
       findUserByGithubId: async () => ({
         id: "user_1",
@@ -96,11 +97,13 @@ describe("beta gate for GitHub", () => {
         email: "ada@example.com",
         avatarUrl: null,
         role: "USER",
+        sessionVersion: 0,
+        suspendedAt: null,
       }),
     });
     const outcome = await applyGithubGate(success("install"), gate, null);
     expect(outcome.session?.userId).toBe("user_1");
-    expect(outcome.sitesCreated).toBe(1);
+    expect(outcome.sitesCreated).toBe(0);
     expect(gate.link).toHaveBeenCalledWith("user_1", installation, [repo]);
     expect(gate.savePending).not.toHaveBeenCalled();
   });
@@ -116,12 +119,12 @@ describe("beta gate for GitHub", () => {
     expect(gate.link).not.toHaveBeenCalled();
   });
 
-  it("creates the account and sites only after an approved sign-in", async () => {
+  it("creates the account but no sites after an approved sign-in", async () => {
     const gate = deps();
     const outcome = await applyGithubGate(success("sign-in"), gate, "/dashboard/billing");
     expect(outcome.redirect).toBe("/dashboard/billing");
     expect(outcome.session?.login).toBe("ada");
-    expect(outcome.sitesCreated).toBe(1);
+    expect(outcome.sitesCreated).toBe(0);
   });
 
   it("consumes a held install on a later approved sign-in when the GitHub account matches", async () => {
@@ -136,9 +139,53 @@ describe("beta gate for GitHub", () => {
     };
     const gate = deps({ takePending: async () => pending });
     const outcome = await applyGithubGate(success("sign-in", false), gate, null);
-    expect(outcome.sitesCreated).toBe(1);
+    expect(outcome.sitesCreated).toBe(0);
     expect(outcome.consumedPending).toBe(true);
     expect(gate.markPendingConsumed).toHaveBeenCalled();
+  });
+
+  it("uses a linked account's current email for beta access after an email change", async () => {
+    const linked = {
+      id: "user_1",
+      githubId: "42",
+      login: "ada",
+      name: "Ada",
+      email: "new@example.com",
+      avatarUrl: null,
+      role: "USER" as const,
+      sessionVersion: 0,
+      suspendedAt: null,
+    };
+    const gate = deps({
+      hasAccess: async (candidate) => candidate === "new@example.com",
+      findUserByGithubId: async () => linked,
+    });
+    const outcome = await applyGithubGate(success("sign-in"), gate, null);
+    expect(outcome.session?.userId).toBe("user_1");
+    expect(outcome.session?.email).toBe("new@example.com");
+    expect(outcome.redirect).toBe("/dashboard");
+  });
+
+  it("does not create a session for a suspended account", async () => {
+    const suspended = {
+      id: "user_1",
+      githubId: "42",
+      login: "ada",
+      name: "Ada",
+      email: "ada@example.com",
+      avatarUrl: null,
+      role: "USER" as const,
+      sessionVersion: 2,
+      suspendedAt: new Date(),
+    };
+    const gate = deps({
+      findUserByGithubId: async () => suspended,
+      updateUser: async () => suspended,
+    });
+    const outcome = await applyGithubGate(success("sign-in"), gate, null);
+    expect(outcome.session).toBeNull();
+    expect(outcome.redirect).toBe("/login?error=suspended");
+    expect(gate.link).not.toHaveBeenCalled();
   });
 
   it("does not attach a held install to a different GitHub account", () => {

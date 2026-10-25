@@ -2,37 +2,60 @@
 
 import { randomBytes } from "node:crypto";
 import { redirect } from "next/navigation";
-import { getRequestSession } from "@/lib/auth";
+import { logActivity } from "@/lib/admin/activity";
+import { requireWritableAdminAction } from "@/lib/admin/guard";
 import { grantBetaAccess } from "@/lib/beta/access";
 import { appUrl } from "@/lib/config";
 import { getPrisma } from "@/lib/db";
+import { normalizeEmail } from "@/lib/auth/login-code";
 import { sendBetaInviteEmail } from "@/lib/email/resend";
 
 export async function createBetaInvite(formData: FormData) {
-  const session = await getRequestSession();
-  if (!session || session.role !== "ADMIN") redirect("/dashboard");
-  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const session = await requireWritableAdminAction();
+  const raw = String(formData.get("emails") ?? formData.get("email") ?? "");
+  const emails = Array.from(
+    new Set(
+      raw
+        .split(/[\s,;]+/)
+        .map((value) => normalizeEmail(value))
+        .filter((value): value is string => Boolean(value)),
+    ),
+  );
   const waveValue = Number(formData.get("wave") ?? 1);
   const wave = Number.isFinite(waveValue) && waveValue > 0 ? Math.floor(waveValue) : 1;
   const prisma = getPrisma();
-  if (!prisma || !email.includes("@")) redirect("/admin/invites?error=1");
-  const token = randomBytes(24).toString("base64url");
-  await prisma.betaInvite.create({ data: { email, wave, token } });
-  await grantBetaAccess(email);
-  try {
-    const sent = await sendBetaInviteEmail({
-      to: email,
-      inviteUrl: `${appUrl()}/login?invite=${token}`,
-    });
-    if (sent.delivered) {
-      await prisma.betaInvite.updateMany({
-        where: { token },
-        data: { sentAt: new Date() },
+  if (!prisma || emails.length === 0) redirect("/admin/invites?error=invalid");
+  if (emails.length > 50) redirect("/admin/invites?error=limit");
+
+  let sent = 0;
+  let saved = 0;
+  for (const email of emails) {
+    const token = randomBytes(24).toString("base64url");
+    await prisma.betaInvite.create({ data: { email, wave, token } });
+    await grantBetaAccess(email);
+    saved += 1;
+    try {
+      const result = await sendBetaInviteEmail({
+        to: email,
+        inviteUrl: `${appUrl()}/login?invite=${token}`,
       });
-      redirect("/admin/invites?sent=1");
+      if (result.delivered) {
+        await prisma.betaInvite.updateMany({
+          where: { token },
+          data: { sentAt: new Date() },
+        });
+        sent += 1;
+      }
+    } catch {
+      // Keep the invite row so the wave can be retried.
     }
-  } catch {
-    redirect("/admin/invites?saved=1");
   }
-  redirect("/admin/invites?saved=1");
+  await logActivity({
+    actorId: session.userId,
+    actorEmail: session.login,
+    action: "admin.invite-wave",
+    targetType: "betaInvite",
+    metadata: { wave, emails: emails.length, sent, saved },
+  });
+  redirect(`/admin/invites?saved=${saved}&sent=${sent}&wave=${wave}`);
 }

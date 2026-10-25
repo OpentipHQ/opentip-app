@@ -1,10 +1,12 @@
 import type { ShellItem } from "@/components/shell/app-shell";
 
 export const dashboardNav: ShellItem[] = [
-  { href: "/dashboard", label: "Sites" },
+  { href: "/dashboard", label: "Import" },
+  { href: "/dashboard/sites", label: "Sites" },
   { href: "/dashboard/worklog", label: "Changelog" },
   { href: "/dashboard/usage", label: "Usage" },
   { href: "/dashboard/billing", label: "Billing" },
+  { href: "/profile", label: "Profile" },
 ];
 
 export const adminNav: ShellItem[] = [
@@ -18,4 +20,7 @@ export const adminNav: ShellItem[] = [
   { href: "/admin/invites", label: "Invites" },
   { href: "/admin/installs", label: "Installs" },
   { href: "/admin/tips", label: "Tips" },
+  { href: "/admin/announcements", label: "Announcements" },
+  { href: "/admin/alerts", label: "Spend alerts" },
+  { href: "/admin/activity", label: "Activity" },
 ];

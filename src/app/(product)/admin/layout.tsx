@@ -1,7 +1,8 @@
-import { redirect } from "next/navigation";
 import { AppShell } from "@/components/shell/app-shell";
 import { adminNav } from "@/components/shell/nav";
-import { getRequestSession } from "@/lib/auth";
+import { requireAdminPage } from "@/lib/admin/guard";
+import { readActAs } from "@/lib/admin/act-as";
+import { loadCurrentUser } from "@/lib/profile/user";
 import { devBypassEnabled } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
@@ -11,13 +12,14 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await getRequestSession();
-  if (!session) redirect("/login?next=/admin");
-  if (session.role !== "ADMIN") redirect("/dashboard");
+  const session = await requireAdminPage();
+  const user = await loadCurrentUser(session);
+  const actAs = await readActAs();
   return (
     <AppShell
       items={adminNav}
-      userLabel={session.login}
+      user={user}
+      actAs={actAs ? { login: actAs.login, name: actAs.name } : null}
       devPreview={devBypassEnabled()}
     >
       {children}

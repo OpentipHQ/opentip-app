@@ -1,27 +1,154 @@
-import { RowsTable } from "@/components/admin/table";
 import { PageHeader } from "@/components/shell/page-header";
-import { loadAdminSnapshot } from "@/lib/view-data";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { getPrisma } from "@/lib/db";
+import { loadPlans } from "@/lib/view-data";
+import { addCredits, changeUserPlan } from "./actions";
 
 export const dynamic = "force-dynamic";
 
-export default async function PlansPage() {
-  const snapshot = await loadAdminSnapshot();
+export default async function PlansPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ saved?: string; error?: string }>;
+}) {
+  const params = await searchParams;
+  const plans = await loadPlans();
+  const prisma = getPrisma();
+  const [users, subscriptions, dbPlans] = prisma
+    ? await Promise.all([
+        prisma.user.findMany({ orderBy: { login: "asc" }, take: 100 }),
+        prisma.subscription.findMany({
+          include: { plan: true, user: { select: { login: true } } },
+          orderBy: { updatedAt: "desc" },
+          take: 50,
+        }),
+        prisma.plan.findMany({ orderBy: { priceCents: "asc" } }),
+      ])
+    : [[], [], []];
   return (
     <>
       <PageHeader
-        title="Plans"
-        description="Stored prices. The billing page hides them during beta."
+        title="Plans and limits"
+        description="Stored plan prices, user plans, and manual credit adjustments. This is not an invoice."
       />
-      <RowsTable
-        columns={["Plan", "USD / month", "Custom domain", "Repo daily cap USD"]}
-        rows={snapshot.plans.map((plan) => [
-          plan.name,
-          (plan.priceCents / 100).toFixed(0),
-          plan.customDomain ? "Yes" : "No",
-          plan.dailyRepoCapUsd.toFixed(2),
-        ])}
-        empty="No plans stored."
-      />
+      {params.saved === "plan" ? <p className="text-sm text-muted-foreground">Plan updated.</p> : null}
+      {params.saved === "credits" ? <p className="text-sm text-muted-foreground">Credits updated.</p> : null}
+      {params.error ? <p className="text-sm text-destructive">That change failed. Check the user and amount.</p> : null}
+      <Card className="py-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Plan</TableHead>
+              <TableHead>USD / month</TableHead>
+              <TableHead>Custom domain</TableHead>
+              <TableHead>Repo daily cap USD</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {plans.map((plan) => (
+              <TableRow key={plan.tier}>
+                <TableCell>{plan.name}</TableCell>
+                <TableCell>{(plan.priceCents / 100).toFixed(0)}</TableCell>
+                <TableCell>{plan.customDomain ? "Yes" : "No"}</TableCell>
+                <TableCell>{plan.dailyRepoCapUsd.toFixed(2)}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </Card>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Change a user plan</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {dbPlans.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No plan rows exist yet. Seed the Plan table before changing a subscription.
+              </p>
+            ) : (
+              <form action={changeUserPlan} className="flex flex-col gap-3">
+                <select name="userId" required className="h-9 rounded-full border border-border bg-white px-3 text-sm">
+                  <option value="">Choose a user</option>
+                  {users.map((user) => (
+                    <option key={user.id} value={user.id}>
+                      {user.login} {user.email ? `(${user.email})` : ""}
+                    </option>
+                  ))}
+                </select>
+                <select name="planId" required className="h-9 rounded-full border border-border bg-white px-3 text-sm">
+                  <option value="">Choose a plan</option>
+                  {dbPlans.map((plan) => (
+                    <option key={plan.id} value={plan.id}>
+                      {plan.name}
+                    </option>
+                  ))}
+                </select>
+                <Button type="submit" className="w-fit">
+                  Save plan
+                </Button>
+              </form>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Add credits</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form action={addCredits} className="flex flex-col gap-3">
+              <select name="userId" required className="h-9 rounded-full border border-border bg-white px-3 text-sm">
+                <option value="">Choose a user</option>
+                {users.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.login} (${Number(user.creditUsd).toFixed(2)})
+                  </option>
+                ))}
+              </select>
+              <input
+                name="amount"
+                type="number"
+                step="0.01"
+                min="-100000"
+                max="100000"
+                required
+                placeholder="USD, for example 25"
+                className="h-9 rounded-full border border-border bg-white px-4 text-sm"
+              />
+              <Button type="submit" className="w-fit">
+                Add credits
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card className="py-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>User</TableHead>
+              <TableHead>Plan</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Updated</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {subscriptions.map((row) => (
+              <TableRow key={row.id}>
+                <TableCell>{row.user.login}</TableCell>
+                <TableCell>{row.plan.name}</TableCell>
+                <TableCell>{row.status}</TableCell>
+                <TableCell>{row.updatedAt.toISOString().slice(0, 10)}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </Card>
     </>
   );
 }

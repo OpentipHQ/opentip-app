@@ -32,11 +32,6 @@ export async function proxy(request: NextRequest) {
       url.searchParams.set("next", request.nextUrl.pathname);
       return NextResponse.redirect(url);
     }
-    if (decision.area === "admin" && session.role !== "ADMIN") {
-      const url = request.nextUrl.clone();
-      url.pathname = "/dashboard";
-      return NextResponse.redirect(url);
-    }
   }
 
   return NextResponse.next();

@@ -10,6 +10,8 @@ function user(overrides: Partial<ExistingUser> = {}): ExistingUser {
     email: "ada@example.com",
     avatarUrl: null,
     role: "USER",
+    sessionVersion: 0,
+    suspendedAt: null,
     ...overrides,
   };
 }
@@ -50,6 +52,30 @@ describe("account linking", () => {
       kind: "update",
       id: "user_1",
       data: { githubId: "42", login: "ada-gh" },
+    });
+  });
+
+  it("keeps a changed profile email and display name on GitHub sign-in", () => {
+    const decision = decideAccountLink({
+      profile: {
+        githubId: "42",
+        login: "ada-gh",
+        name: "Ada GitHub",
+        email: "old@github.com",
+        avatarUrl: null,
+      },
+      byGithub: user({ githubId: "42", login: "ada-gh" }),
+      byEmail: null,
+    });
+    expect(decision).toMatchObject({
+      kind: "update",
+      id: "user_1",
+      data: {
+        githubId: "42",
+        login: "ada-gh",
+        name: "Ada",
+        email: "ada@example.com",
+      },
     });
   });
 

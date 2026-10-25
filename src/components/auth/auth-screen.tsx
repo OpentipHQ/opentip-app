@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { OpentipMark } from "@/components/brand/logo";
+import { ResendCode } from "@/components/auth/resend-code";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { devBypassEnabled } from "@/lib/session";
@@ -121,14 +122,7 @@ export function CodeScreen({
             Continue
           </Button>
         </form>
-        <form action="/api/auth/email/resend" method="post">
-          <Button type="submit" variant="outline" size="lg" className="w-full" disabled={cooldown > 0 || !email}>
-            Resend code
-          </Button>
-        </form>
-        {cooldown > 0 ? (
-          <p className="text-sm text-muted-foreground">You can send another code in {cooldown} seconds.</p>
-        ) : null}
+        <ResendCode email={email} cooldown={cooldown} />
         <p className="text-sm text-muted-foreground">
           <Link href="/login" className="text-foreground underline underline-offset-4">
             Back to log in

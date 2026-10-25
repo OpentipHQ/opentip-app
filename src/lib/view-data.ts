@@ -173,7 +173,6 @@ export async function loadPlans(): Promise<PlanCard[]> {
 
 export type AdminSnapshot = {
   connected: boolean;
-  applications: Array<{ id: string; email: string; githubLogin: string | null; status: string; createdAt: string }>;
   users: Array<{ id: string; login: string; email: string | null; role: string; createdAt: string }>;
   jobs: Array<{
     id: string;
@@ -196,7 +195,6 @@ export type AdminSnapshot = {
 export async function loadAdminSnapshot(): Promise<AdminSnapshot> {
   const empty: AdminSnapshot = {
     connected: false,
-    applications: [],
     users: [],
     jobs: [],
     feedback: [],
@@ -207,8 +205,7 @@ export async function loadAdminSnapshot(): Promise<AdminSnapshot> {
   const prisma = getPrisma();
   if (!prisma) return empty;
   try {
-    const [applications, users, jobs, feedback, invites, installs, plans] = await Promise.all([
-      prisma.betaApplication.findMany({ orderBy: { createdAt: "desc" }, take: 50 }),
+    const [users, jobs, feedback, invites, installs, plans] = await Promise.all([
       prisma.user.findMany({ orderBy: { createdAt: "desc" }, take: 50 }),
       prisma.job.findMany({
         include: { repo: true },
@@ -226,13 +223,6 @@ export async function loadAdminSnapshot(): Promise<AdminSnapshot> {
     ]);
     return {
       connected: true,
-      applications: applications.map((row) => ({
-        id: row.id,
-        email: row.email,
-        githubLogin: row.githubLogin,
-        status: row.status,
-        createdAt: row.createdAt.toISOString(),
-      })),
       users: users.map((row) => ({
         id: row.id,
         login: row.login,

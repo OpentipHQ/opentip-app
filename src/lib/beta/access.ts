@@ -15,6 +15,43 @@ export async function hasBetaAccess(email: string): Promise<boolean> {
   return Boolean(row);
 }
 
+export async function findBetaAccessEmails(emails: string[]): Promise<Set<string>> {
+  const normalized = Array.from(
+    new Set(
+      emails
+        .map((email) => normalizeEmail(email))
+        .filter((email): email is string => Boolean(email)),
+    ),
+  );
+  const approved = new Set(normalized.filter((email) => isBootstrapAdmin(email)));
+  const prisma = getPrisma();
+  if (!prisma || normalized.length === 0) return approved;
+  const rows = await prisma.betaAccess.findMany({
+    where: { email: { in: normalized } },
+    select: { email: true },
+  });
+  for (const row of rows) approved.add(row.email);
+  return approved;
+}
+
+export async function revokeBetaAccess(
+  email: string,
+): Promise<"revoked" | "invalid" | "no-database" | "bootstrap"> {
+  const normalized = normalizeEmail(email);
+  if (!normalized) return "invalid";
+  if (isBootstrapAdmin(normalized)) return "bootstrap";
+  const prisma = getPrisma();
+  if (!prisma) return "no-database";
+  await prisma.$transaction([
+    prisma.betaAccess.deleteMany({ where: { email: normalized } }),
+    prisma.user.updateMany({
+      where: { email: normalized },
+      data: { sessionVersion: { increment: 1 } },
+    }),
+  ]);
+  return "revoked";
+}
+
 export async function grantBetaAccess(
   email: string,
   applicationId?: string | null,

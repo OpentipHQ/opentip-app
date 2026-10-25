@@ -1,13 +1,13 @@
 import { PageHeader } from "@/components/shell/page-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getRequestSession } from "@/lib/auth";
+import { getViewSession } from "@/lib/admin/act-as";
 import { loadUsage } from "@/lib/view-data";
 
 export const dynamic = "force-dynamic";
 
 export default async function UsagePage() {
-  const session = await getRequestSession();
+  const session = await getViewSession();
   if (!session) return null;
   const usage = await loadUsage(session);
   const stats = [

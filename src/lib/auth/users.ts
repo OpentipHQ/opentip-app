@@ -13,6 +13,8 @@ type UserRow = {
   email: string | null;
   avatarUrl: string | null;
   role: "USER" | "ADMIN";
+  sessionVersion: number;
+  suspendedAt: Date | null;
 };
 
 export function toExistingUser(row: UserRow): ExistingUser {
@@ -24,6 +26,8 @@ export function toExistingUser(row: UserRow): ExistingUser {
     email: row.email,
     avatarUrl: row.avatarUrl,
     role: row.role,
+    sessionVersion: row.sessionVersion,
+    suspendedAt: row.suspendedAt,
   };
 }
 

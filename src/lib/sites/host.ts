@@ -63,7 +63,7 @@ function isSubdomain(value: string): boolean {
 export type ProxyDecision =
   | { kind: "next" }
   | { kind: "rewrite"; pathname: string; publicHost: string }
-  | { kind: "protect"; area: "dashboard" | "admin" };
+  | { kind: "protect"; area: "dashboard" | "admin" | "profile" };
 
 export function decideProxy(input: {
   host: string;
@@ -112,6 +112,9 @@ export function decideProxy(input: {
     input.pathname.startsWith("/dashboard/")
   ) {
     return { kind: "protect", area: "dashboard" };
+  }
+  if (input.pathname === "/profile" || input.pathname.startsWith("/profile/")) {
+    return { kind: "protect", area: "profile" };
   }
   return { kind: "next" };
 }

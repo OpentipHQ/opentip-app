@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu } from "lucide-react";
 import { OpentipLockup } from "@/components/brand/logo";
+import { UserMenu, type MenuUser } from "@/components/shell/user-menu";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -18,17 +19,33 @@ export type ShellItem = { href: string; label: string };
 
 export function AppShell({
   items,
-  userLabel,
+  user,
+  actAs,
   devPreview,
+  announcement,
   children,
 }: {
   items: ShellItem[];
-  userLabel: string;
+  user: MenuUser;
+  actAs?: { login: string; name: string | null } | null;
   devPreview: boolean;
+  announcement?: { title: string; body: string } | null;
   children: React.ReactNode;
 }) {
   return (
     <div className="min-h-screen bg-background">
+      {actAs ? (
+        <div className="sticky top-0 z-40 flex flex-wrap items-center justify-center gap-3 bg-[#2A2AD6] px-4 py-2 text-center text-sm text-white">
+          <span>
+            Viewing as {actAs.name || actAs.login}. Read-only. No writes are possible.
+          </span>
+          <form action="/api/admin/act-as/stop" method="post">
+            <button type="submit" className="rounded-full bg-white px-3 py-1 text-xs font-medium text-[#2A2AD6]">
+              Stop viewing
+            </button>
+          </form>
+        </div>
+      ) : null}
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-border bg-white md:flex">
         <div className="flex h-14 items-center px-5">
           <OpentipLockup />
@@ -69,21 +86,28 @@ export function AppShell({
             </span>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-sm text-muted-foreground">{userLabel}</span>
-            {devPreview ? (
+            {actAs ? (
+              <span className="text-sm text-muted-foreground">
+                {actAs.name || actAs.login}
+              </span>
+            ) : devPreview ? (
               <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
                 Dev preview
               </span>
             ) : (
-              <form action="/api/auth/sign-out" method="post">
-                <Button type="submit" variant="outline" size="sm">
-                  Sign out
-                </Button>
-              </form>
+              <UserMenu user={user} />
             )}
           </div>
         </header>
         <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-8 md:px-8 md:py-10">
+          {announcement ? (
+            <div className="rounded-2xl border border-[#2A2AD6]/20 bg-[#2A2AD6]/5 px-4 py-3">
+              <p className="text-sm font-medium">{announcement.title}</p>
+              <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">
+                {announcement.body}
+              </p>
+            </div>
+          ) : null}
           {children}
         </main>
       </div>

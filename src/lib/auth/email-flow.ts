@@ -28,7 +28,8 @@ export type VerifyResult =
         | "too_many"
         | "missing"
         | "used"
-        | "waitlist";
+        | "waitlist"
+        | "suspended";
     };
 
 function codeSecret(): string | null {
@@ -100,7 +101,7 @@ export async function verifyLoginCode(args: {
   if (!prisma) return { status: "database" };
   const now = args.now ?? new Date();
   const row = await prisma.loginCode.findFirst({
-    where: { email },
+    where: { email, purpose: "signin" },
     orderBy: { createdAt: "desc" },
   });
   const verdict = assessLoginCode({
@@ -147,7 +148,110 @@ export async function verifyLoginCode(args: {
     decision.kind === "create"
       ? await createAppUser(decision.data)
       : await updateAppUser(decision.id, decision.data);
+  if (user.suspendedAt) return { status: "suspended" };
   return { status: "ok", user };
+}
+
+export async function issueEmailChangeCode(args: {
+  userId: string;
+  emailRaw: string;
+  now?: Date;
+}): Promise<IssueResult> {
+  const email = normalizeEmail(args.emailRaw);
+  if (!email) return { status: "invalid" };
+  const secret = codeSecret();
+  if (!secret) return { status: "session" };
+  const prisma = getPrisma();
+  if (!prisma) return { status: "database" };
+  const now = args.now ?? new Date();
+  const since = hourAgo(now);
+  const [recentEmailCount, latest] = await Promise.all([
+    prisma.loginCode.count({ where: { email, createdAt: { gte: since } } }),
+    prisma.loginCode.findFirst({
+      where: { email },
+      orderBy: { createdAt: "desc" },
+      select: { createdAt: true },
+    }),
+  ]);
+  const plan = planLoginCode({
+    approved: true,
+    recentEmailCount,
+    recentIpCount: 0,
+    lastSentAt: latest?.createdAt ?? null,
+    now,
+    email,
+    secret,
+  });
+  if (!plan.ok) return { status: plan.reason };
+  let sent: { mode: string };
+  try {
+    sent = await sendLoginCodeEmail({
+      to: email,
+      code: plan.code,
+      purpose: "email-change",
+    });
+  } catch {
+    return { status: "unconfigured" };
+  }
+  if (sent.mode === "skipped") return { status: "unconfigured" };
+  await prisma.loginCode.create({
+    data: {
+      email,
+      codeHash: plan.codeHash,
+      purpose: "email-change",
+      userId: args.userId,
+      expiresAt: plan.expiresAt,
+    },
+  });
+  return { status: "sent" };
+}
+
+export async function verifyEmailChangeCode(args: {
+  userId: string;
+  emailRaw: string;
+  code: string;
+  now?: Date;
+}): Promise<"ok" | "missing" | "expired" | "wrong" | "too_many" | "database" | "session" | "used"> {
+  const email = normalizeEmail(args.emailRaw);
+  if (!email) return "missing";
+  const secret = codeSecret();
+  if (!secret) return "session";
+  const prisma = getPrisma();
+  if (!prisma) return "database";
+  const now = args.now ?? new Date();
+  const row = await prisma.loginCode.findFirst({
+    where: { email, userId: args.userId, purpose: "email-change" },
+    orderBy: { createdAt: "desc" },
+  });
+  const verdict = assessLoginCode({
+    row: row
+      ? {
+          codeHash: row.codeHash,
+          expiresAt: row.expiresAt,
+          attempts: row.attempts,
+          consumedAt: row.consumedAt,
+        }
+      : null,
+    code: args.code,
+    email,
+    secret,
+    now,
+  });
+  if (!verdict.ok) {
+    if (verdict.increment && row) {
+      await prisma.loginCode.update({
+        where: { id: row.id },
+        data: { attempts: { increment: 1 } },
+      });
+    }
+    return verdict.reason;
+  }
+  if (!row) return "missing";
+  const consumed = await prisma.loginCode.updateMany({
+    where: { id: row.id, consumedAt: null },
+    data: { consumedAt: now },
+  });
+  return consumed.count === 1 ? "ok" : "used";
 }
 
 export async function loginCodeCooldown(email: string, now = new Date()): Promise<number> {

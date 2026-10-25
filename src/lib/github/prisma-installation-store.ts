@@ -1,4 +1,4 @@
-import { getPrisma, isUniqueConstraint } from "@/lib/db";
+import { getPrisma } from "@/lib/db";
 import type { InstallationStore } from "@/lib/github/link-installation";
 
 export function createPrismaInstallationStore(): InstallationStore | null {
@@ -12,11 +12,13 @@ export function createPrismaInstallationStore(): InstallationStore | null {
           githubInstallationId: input.githubInstallationId,
           accountLogin: input.accountLogin,
           accountType: input.accountType,
+          accountAvatarUrl: input.accountAvatarUrl ?? null,
           userId: input.userId,
         },
         update: {
           accountLogin: input.accountLogin,
           accountType: input.accountType,
+          accountAvatarUrl: input.accountAvatarUrl ?? null,
           userId: input.userId,
           uninstalledAt: null,
           suspendedAt: null,
@@ -37,6 +39,7 @@ export function createPrismaInstallationStore(): InstallationStore | null {
           private: input.private,
           defaultBranch: input.defaultBranch,
           archived: input.archived,
+          pushedAt: input.pushedAt ?? null,
         },
         update: {
           installationId: input.installationId,
@@ -46,37 +49,12 @@ export function createPrismaInstallationStore(): InstallationStore | null {
           private: input.private,
           defaultBranch: input.defaultBranch,
           archived: input.archived,
+          pushedAt: input.pushedAt ?? null,
           removed: false,
         },
-        select: { id: true, site: { select: { id: true } } },
-      });
-      return { id: repo.id, hasSite: Boolean(repo.site) };
-    },
-    async saveSite(input) {
-      const existing = await prisma.site.findUnique({
-        where: { repoId: input.repoId },
         select: { id: true },
       });
-      if (existing) return "exists";
-      try {
-        await prisma.site.create({
-          data: {
-            repoId: input.repoId,
-            ownerId: input.ownerId,
-            name: input.name,
-            subdomain: input.subdomain,
-            status: "PENDING",
-          },
-        });
-        return "created";
-      } catch (error) {
-        if (!isUniqueConstraint(error)) throw error;
-        const again = await prisma.site.findUnique({
-          where: { repoId: input.repoId },
-          select: { id: true },
-        });
-        return again ? "exists" : "taken";
-      }
+      return { id: repo.id };
     },
   };
 }

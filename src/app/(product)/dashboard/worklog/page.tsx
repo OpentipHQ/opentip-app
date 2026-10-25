@@ -3,13 +3,13 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
-import { getRequestSession } from "@/lib/auth";
+import { getViewSession } from "@/lib/admin/act-as";
 import { loadWorklog } from "@/lib/view-data";
 
 export const dynamic = "force-dynamic";
 
 export default async function WorklogPage() {
-  const session = await getRequestSession();
+  const session = await getViewSession();
   if (!session) return null;
   const { entries, connected } = await loadWorklog(session);
   return (

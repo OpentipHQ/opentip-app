@@ -50,6 +50,7 @@ export async function POST(request: Request) {
       name: sessionUser.name,
       role: sessionUser.role,
       exp: Date.now() + SESSION_TTL_SECONDS * 1000,
+      sv: sessionUser.sessionVersion,
     },
     secret,
   );

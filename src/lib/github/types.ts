@@ -1,3 +1,5 @@
+import type { RepoSeed } from "@/lib/github/install";
+
 export type GithubWebhookHeaders = {
   deliveryId: string | null;
   event: string | null;
@@ -39,6 +41,13 @@ export interface WebhookRepository {
     reason: string,
   ): Promise<number>;
   pauseRepos(githubRepoIds: string[], reason: string): Promise<number>;
+  addRepos(githubInstallationId: string, repos: RepoSeed[]): Promise<number>;
+  recordError(input: {
+    deliveryId: string;
+    event: string;
+    action: string | null;
+    message: string;
+  }): Promise<void>;
   upsertInstallation(input: {
     githubInstallationId: string;
     accountLogin: string;

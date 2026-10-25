@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { sessionSecret } from "@/lib/config";
 import { getPrisma } from "@/lib/db";
 import {
+  LINK_GITHUB_COOKIE,
   NEXT_COOKIE,
   PENDING_INSTALL_COOKIE,
   PENDING_INSTALL_TTL_SECONDS,
@@ -62,9 +63,10 @@ export async function GET(request: Request) {
 
   const existingRaw = await verifySession(jar.get(SESSION_COOKIE)?.value, secret);
   let existing: SessionDraft | null = null;
+  let sessionActive = false;
   if (existingRaw) {
     const row = await prisma.user.findUnique({ where: { id: existingRaw.userId } });
-    if (row) {
+    if (row && !row.suspendedAt && (existingRaw.sv ?? 0) === row.sessionVersion) {
       const user = toExistingUser(row);
       existing = {
         userId: user.id,
@@ -73,8 +75,38 @@ export async function GET(request: Request) {
         role: user.role,
         email: user.email,
         githubId: user.githubId,
+        sv: user.sessionVersion,
       };
+      sessionActive = true;
     }
+  }
+
+  const linkRaw = await verifySession(jar.get(LINK_GITHUB_COOKIE)?.value, secret);
+  if (linkRaw && existingRaw && linkRaw.userId === existingRaw.userId) {
+    const clearLink = { name: LINK_GITHUB_COOKIE, value: "", maxAge: 0 };
+    if (!sessionActive || !existing) {
+      return redirectWithCookies(origin, "/login?error=suspended", [
+        clearOauth,
+        clearLink,
+        { name: SESSION_COOKIE, value: "", maxAge: 0 },
+      ]);
+    }
+    const owner = await prisma.user.findUnique({
+      where: { githubId: result.profile.id },
+      select: { id: true },
+    });
+    if (owner && owner.id !== linkRaw.userId) {
+      return redirectWithCookies(origin, "/profile?error=github-taken", [clearOauth, clearLink]);
+    }
+    await prisma.user.update({
+      where: { id: linkRaw.userId },
+      data: {
+        githubId: result.profile.id,
+        avatarUrl: result.profile.avatarUrl,
+        ...(existing.name ? {} : { name: result.profile.name }),
+      },
+    });
+    return redirectWithCookies(origin, "/profile?linked=1", [clearOauth, clearLink]);
   }
 
   const held = await readPendingInstall(jar.get(PENDING_INSTALL_COOKIE)?.value);
@@ -112,6 +144,7 @@ export async function GET(request: Request) {
 
   const jarCookies: Array<{ name: string; value: string; maxAge: number }> = [
     clearOauth,
+    { name: LINK_GITHUB_COOKIE, value: "", maxAge: 0 },
     { name: NEXT_COOKIE, value: "", maxAge: 0 },
   ];
   if (outcome.clearSession) {
@@ -134,6 +167,7 @@ export async function GET(request: Request) {
         name: outcome.session.name,
         role: outcome.session.role,
         exp: Date.now() + SESSION_TTL_SECONDS * 1000,
+        sv: outcome.session.sv,
       },
       secret,
     );

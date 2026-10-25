@@ -50,4 +50,14 @@ describe("docs host routing", () => {
       }),
     ).toEqual({ kind: "next" });
   });
+
+  it("protects the profile page", () => {
+    expect(
+      decideProxy({
+        host: "beta.opentip.tech",
+        pathname: "/profile",
+        ...options,
+      }),
+    ).toEqual({ kind: "protect", area: "profile" });
+  });
 });

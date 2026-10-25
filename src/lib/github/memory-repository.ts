@@ -90,6 +90,36 @@ export class MemoryWebhookRepository implements WebhookRepository {
     return paused;
   }
 
+  async addRepos(
+    githubInstallationId: string,
+    repos: Array<{
+      githubRepoId: string;
+      owner: string;
+      name: string;
+      fullName: string;
+      private: boolean;
+      defaultBranch: string;
+      archived: boolean;
+      pushedAt?: Date | null;
+    }>,
+  ): Promise<number> {
+    let added = 0;
+    for (const repo of repos) {
+      this.repos.set(repo.githubRepoId, {
+        id: `repo_${repo.githubRepoId}`,
+        githubRepoId: repo.githubRepoId,
+        fullName: repo.fullName,
+        owner: repo.owner,
+        name: repo.name,
+        installationGithubId: githubInstallationId,
+      });
+      added += 1;
+    }
+    return added;
+  }
+
+  async recordError(): Promise<void> {}
+
   async upsertInstallation(input: {
     githubInstallationId: string;
     accountLogin: string;

@@ -12,6 +12,8 @@ export type ExistingUser = Omit<AccountProfile, "email"> & {
   id: string;
   role: "USER" | "ADMIN";
   email: string | null;
+  sessionVersion: number;
+  suspendedAt: Date | null;
 };
 
 export type LinkDecision =
@@ -49,8 +51,8 @@ export function decideAccountLink(args: {
     data: {
       githubId: profile.githubId ?? target.githubId,
       login: profile.githubId ? profile.login : target.login,
-      name: profile.name ?? target.name,
-      email,
+      name: target.name ?? profile.name,
+      email: target.email ?? email,
       avatarUrl: profile.avatarUrl ?? target.avatarUrl,
     },
   };
