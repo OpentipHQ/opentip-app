@@ -1,5 +1,5 @@
 import { PageHeader } from "@/components/shell/page-header";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getPrisma } from "@/lib/db";
@@ -62,7 +62,7 @@ export default async function AlertsPage({
         </Card>
       </div>
       <form action={checkSpendAlerts}>
-        <Button type="submit">Check now</Button>
+        <SubmitButton loadingText="Checking...">Check now</SubmitButton>
       </form>
       <Card className="py-0">
         <Table>

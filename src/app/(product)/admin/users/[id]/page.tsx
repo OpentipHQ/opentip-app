@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/shell/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getPrisma } from "@/lib/db";
 import { startActAs, suspendUser, unsuspendUser } from "../actions";
@@ -54,21 +55,21 @@ export default async function AdminUserPage({
             </Button>
             <form action={startActAs}>
               <input type="hidden" name="id" value={user.id} />
-              <Button type="submit" variant="outline">
+              <SubmitButton variant="outline" loadingText="Opening...">
                 View as
-              </Button>
+              </SubmitButton>
             </form>
             {user.suspendedAt ? (
               <form action={unsuspendUser}>
                 <input type="hidden" name="id" value={user.id} />
-                <Button type="submit">Unsuspend</Button>
+                <SubmitButton loadingText="Restoring...">Unsuspend</SubmitButton>
               </form>
             ) : (
               <form action={suspendUser}>
                 <input type="hidden" name="id" value={user.id} />
-                <Button type="submit" variant="destructive">
+                <SubmitButton variant="destructive" loadingText="Suspending...">
                   Suspend
-                </Button>
+                </SubmitButton>
               </form>
             )}
           </div>

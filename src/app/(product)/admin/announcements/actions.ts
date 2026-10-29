@@ -1,12 +1,12 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { logActivity } from "@/lib/admin/activity";
 import { requireWritableAdminAction } from "@/lib/admin/guard";
 import { getPrisma } from "@/lib/db";
 import { filterAnnouncementRecipients } from "@/lib/email/preferences";
 import { sendAnnouncementEmail } from "@/lib/email/resend";
+import { redirectWithToast } from "@/lib/toast-server";
 
 async function sendToBetaUsers(announcement: {
   id: string;
@@ -47,9 +47,21 @@ export async function createAnnouncement(formData: FormData) {
   const body = String(formData.get("body") ?? "").trim().slice(0, 4000);
   const active = formData.get("active") === "on";
   const email = formData.get("email") === "on";
-  if (!title || !body) redirect("/admin/announcements?error=1");
+  if (!title || !body) {
+    return redirectWithToast(
+      "/admin/announcements?error=1",
+      "error",
+      "Add a title and body for the announcement.",
+    );
+  }
   const prisma = getPrisma();
-  if (!prisma) redirect("/admin/announcements?error=database");
+  if (!prisma) {
+    return redirectWithToast(
+      "/admin/announcements?error=database",
+      "error",
+      "The database is not connected.",
+    );
+  }
   const announcement = await prisma.announcement.create({
     data: {
       title,
@@ -76,16 +88,32 @@ export async function createAnnouncement(formData: FormData) {
   });
   revalidatePath("/admin/announcements");
   revalidatePath("/dashboard");
-  redirect(`/admin/announcements?saved=1&sent=${sent}`);
+  return redirectWithToast(
+    `/admin/announcements?saved=1&sent=${sent}`,
+    "success",
+    email ? `Announcement saved. ${sent} emails sent.` : "Announcement saved.",
+  );
 }
 
 export async function toggleAnnouncement(formData: FormData) {
   const session = await requireWritableAdminAction();
   const id = String(formData.get("id") ?? "");
   const prisma = getPrisma();
-  if (!prisma || !id) redirect("/admin/announcements?error=1");
+  if (!prisma || !id) {
+    return redirectWithToast(
+      "/admin/announcements?error=1",
+      "error",
+      "That announcement could not be updated.",
+    );
+  }
   const row = await prisma.announcement.findUnique({ where: { id } });
-  if (!row) redirect("/admin/announcements?error=1");
+  if (!row) {
+    return redirectWithToast(
+      "/admin/announcements?error=1",
+      "error",
+      "That announcement no longer exists.",
+    );
+  }
   await prisma.announcement.update({ where: { id }, data: { active: !row.active } });
   await logActivity({
     actorId: session.userId,
@@ -97,16 +125,32 @@ export async function toggleAnnouncement(formData: FormData) {
   });
   revalidatePath("/admin/announcements");
   revalidatePath("/dashboard");
-  redirect("/admin/announcements?saved=toggle");
+  return redirectWithToast(
+    "/admin/announcements?saved=toggle",
+    "success",
+    row.active ? "Announcement hidden." : "Announcement shown.",
+  );
 }
 
 export async function resendAnnouncement(formData: FormData) {
   const session = await requireWritableAdminAction();
   const id = String(formData.get("id") ?? "");
   const prisma = getPrisma();
-  if (!prisma || !id) redirect("/admin/announcements?error=1");
+  if (!prisma || !id) {
+    return redirectWithToast(
+      "/admin/announcements?error=1",
+      "error",
+      "That announcement could not be sent.",
+    );
+  }
   const row = await prisma.announcement.findUnique({ where: { id } });
-  if (!row) redirect("/admin/announcements?error=1");
+  if (!row) {
+    return redirectWithToast(
+      "/admin/announcements?error=1",
+      "error",
+      "That announcement no longer exists.",
+    );
+  }
   const result = await sendToBetaUsers(row);
   await logActivity({
     actorId: session.userId,
@@ -117,5 +161,9 @@ export async function resendAnnouncement(formData: FormData) {
     metadata: { sent: result.sent, suppressed: result.suppressed },
   });
   revalidatePath("/admin/announcements");
-  redirect(`/admin/announcements?saved=resend&sent=${result.sent}`);
+  return redirectWithToast(
+    `/admin/announcements?saved=resend&sent=${result.sent}`,
+    "success",
+    `Announcement email sent to ${result.sent} recipients.`,
+  );
 }

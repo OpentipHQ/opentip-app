@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 
 export function ResendCode({ email, cooldown }: { email: string | null; cooldown: number }) {
   const [seconds, setSeconds] = useState(Math.max(0, Math.ceil(cooldown)));
@@ -15,15 +15,15 @@ export function ResendCode({ email, cooldown }: { email: string | null; cooldown
   return (
     <>
       <form action="/api/auth/email/resend" method="post">
-        <Button
-          type="submit"
+        <SubmitButton
           variant="outline"
           size="lg"
           className="w-full"
           disabled={seconds > 0 || !email}
+          loadingText="Sending..."
         >
           Resend code
-        </Button>
+        </SubmitButton>
       </form>
       {seconds > 0 ? (
         <p className="text-sm text-muted-foreground" aria-live="polite">

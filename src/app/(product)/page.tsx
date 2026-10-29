@@ -13,7 +13,7 @@ export default async function HomePage() {
       <div className="flex flex-col gap-3">
         <h1 className="text-4xl tracking-tight">Hosted docs and a Changelog for GitHub repos.</h1>
         <p className="max-w-xl text-base leading-7 text-muted-foreground">
-          Opentip writes the docs and updates them on every push. The beta app lives at beta.opentip.tech.
+          Opentip writes the docs and updates them on every push.
         </p>
       </div>
       <div className="flex flex-col gap-3 sm:flex-row">

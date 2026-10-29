@@ -2,6 +2,7 @@ import { RESERVED_SUBDOMAINS } from "@/lib/sites/host";
 import type { ImportField } from "@/lib/import/import-state";
 
 export type ImportTheme = "LEDGER" | "MINIMAL";
+export type ImportReviewMode = "AUTO_PUBLISH" | "REVIEW";
 
 export type ImportRepoRow = {
   id: string;
@@ -22,6 +23,7 @@ export type ImportRepoInput = {
   description?: string;
   theme: string;
   primaryColor: string;
+  reviewMode: string;
 };
 
 export type ImportStore = {
@@ -35,6 +37,7 @@ export type ImportStore = {
     description: string | null;
     theme: ImportTheme;
     primaryColor: string;
+    reviewMode: ImportReviewMode;
     idempotencyKey: string;
   }): Promise<{ siteId: string; jobId: string }>;
 };
@@ -53,6 +56,7 @@ type ValidatedImport = {
   description: string | null;
   theme: ImportTheme;
   primaryColor: string;
+  reviewMode: ImportReviewMode;
 };
 
 function invalid(field: ImportField, message: string): ImportResult {
@@ -94,12 +98,18 @@ function validateImport(input: ImportRepoInput): ValidatedImport | ImportResult 
     return invalid("primaryColor", "Choose a six-digit hex color.");
   }
 
+  const reviewMode = input.reviewMode.trim().toUpperCase();
+  if (reviewMode !== "AUTO_PUBLISH" && reviewMode !== "REVIEW") {
+    return invalid("reviewMode", "Choose auto-publish or review first.");
+  }
+
   return {
     name,
     subdomain,
     description: description || null,
     theme,
     primaryColor,
+    reviewMode,
   };
 }
 
@@ -128,6 +138,7 @@ export async function importRepo(
       description: validated.description,
       theme: validated.theme,
       primaryColor: validated.primaryColor,
+      reviewMode: validated.reviewMode,
       idempotencyKey: `first-build:${repo.id}`,
     });
     return { status: "imported", ...created };

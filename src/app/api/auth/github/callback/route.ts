@@ -10,6 +10,7 @@ import {
 } from "@/lib/auth/constants";
 import { applyGithubGate, type SessionDraft } from "@/lib/auth/gate";
 import { redirectWithCookies, requestOrigin } from "@/lib/auth/http";
+import { authErrors } from "@/lib/auth/messages";
 import { consumePendingInstall, readPendingInstall, storePendingInstall } from "@/lib/auth/pending-store";
 import {
   createAppUser,
@@ -53,12 +54,18 @@ export async function GET(request: Request) {
   const clearOauth = { name: OAUTH_STATE_COOKIE, value: "", maxAge: 0 };
   if (!result.ok || !secret) {
     const error = result.ok ? "session" : result.error;
-    return redirectWithCookies(origin, `/login?error=${error}`, [clearOauth]);
+    return redirectWithCookies(origin, `/login?error=${error}`, [clearOauth], {
+      tone: "error",
+      message: authErrors[error] ?? "GitHub sign-in failed.",
+    });
   }
 
   const prisma = getPrisma();
   if (!prisma) {
-    return redirectWithCookies(origin, "/login?error=database", [clearOauth]);
+    return redirectWithCookies(origin, "/login?error=database", [clearOauth], {
+      tone: "error",
+      message: authErrors.database,
+    });
   }
 
   const existingRaw = await verifySession(jar.get(SESSION_COOKIE)?.value, secret);
@@ -85,18 +92,26 @@ export async function GET(request: Request) {
   if (linkRaw && existingRaw && linkRaw.userId === existingRaw.userId) {
     const clearLink = { name: LINK_GITHUB_COOKIE, value: "", maxAge: 0 };
     if (!sessionActive || !existing) {
-      return redirectWithCookies(origin, "/login?error=suspended", [
-        clearOauth,
-        clearLink,
-        { name: SESSION_COOKIE, value: "", maxAge: 0 },
-      ]);
+      return redirectWithCookies(
+        origin,
+        "/login?error=suspended",
+        [
+          clearOauth,
+          clearLink,
+          { name: SESSION_COOKIE, value: "", maxAge: 0 },
+        ],
+        { tone: "error", message: authErrors.suspended },
+      );
     }
     const owner = await prisma.user.findUnique({
       where: { githubId: result.profile.id },
       select: { id: true },
     });
     if (owner && owner.id !== linkRaw.userId) {
-      return redirectWithCookies(origin, "/profile?error=github-taken", [clearOauth, clearLink]);
+      return redirectWithCookies(origin, "/profile?error=github-taken", [clearOauth, clearLink], {
+        tone: "error",
+        message: "That GitHub account is already linked to someone else.",
+      });
     }
     await prisma.user.update({
       where: { id: linkRaw.userId },
@@ -106,7 +121,10 @@ export async function GET(request: Request) {
         ...(existing.name ? {} : { name: result.profile.name }),
       },
     });
-    return redirectWithCookies(origin, "/profile?linked=1", [clearOauth, clearLink]);
+    return redirectWithCookies(origin, "/profile?linked=1", [clearOauth, clearLink], {
+      tone: "success",
+      message: "GitHub connected.",
+    });
   }
 
   const held = await readPendingInstall(jar.get(PENDING_INSTALL_COOKIE)?.value);
@@ -132,7 +150,10 @@ export async function GET(request: Request) {
     nextPath,
     );
   } catch {
-    return redirectWithCookies(origin, "/login?error=github", [clearOauth]);
+    return redirectWithCookies(origin, "/login?error=github", [clearOauth], {
+      tone: "error",
+      message: authErrors.github,
+    });
   }
 
   if (outcome.session && result.inviteToken && result.profile.email) {
@@ -173,5 +194,9 @@ export async function GET(request: Request) {
     );
     jarCookies.push({ name: SESSION_COOKIE, value: token, maxAge: SESSION_TTL_SECONDS });
   }
-  return redirectWithCookies(origin, outcome.redirect, jarCookies);
+  const toast =
+    outcome.session && !outcome.redirect.startsWith("/waitlist")
+      ? { tone: "success" as const, message: "Signed in with GitHub." }
+      : undefined;
+  return redirectWithCookies(origin, outcome.redirect, jarCookies, toast);
 }

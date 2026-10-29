@@ -1,7 +1,7 @@
 import { AutoRefresh } from "@/components/admin/auto-refresh";
 import { PageHeader } from "@/components/shell/page-header";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getPrisma } from "@/lib/db";
@@ -39,6 +39,9 @@ export default async function JobsPage({
               <TableHead>Repo</TableHead>
               <TableHead>Kind</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Phase</TableHead>
+              <TableHead>Attempts</TableHead>
+              <TableHead>Lease</TableHead>
               <TableHead>Model</TableHead>
               <TableHead>Error</TableHead>
               <TableHead>Created</TableHead>
@@ -53,6 +56,13 @@ export default async function JobsPage({
                 <TableCell>
                   <Badge variant={job.status === "FAILED" ? "destructive" : "secondary"}>{job.status}</Badge>
                 </TableCell>
+                <TableCell>{job.phase}</TableCell>
+                <TableCell>
+                  {job.attempts} / {job.maxAttempts}
+                </TableCell>
+                <TableCell className="text-xs text-muted-foreground">
+                  {job.leaseUntil ? job.leaseUntil.toISOString().slice(11, 16) : ""}
+                </TableCell>
                 <TableCell>{job.model}</TableCell>
                 <TableCell className="max-w-56 truncate text-xs text-muted-foreground" title={job.error ?? ""}>
                   {job.error ?? ""}
@@ -62,9 +72,9 @@ export default async function JobsPage({
                   {job.status === "FAILED" ? (
                     <form action={retryJob}>
                       <input type="hidden" name="id" value={job.id} />
-                      <Button type="submit" size="sm" variant="outline">
+                      <SubmitButton size="sm" variant="outline" loadingText="Retrying...">
                         Retry
-                      </Button>
+                      </SubmitButton>
                     </form>
                   ) : null}
                 </TableCell>

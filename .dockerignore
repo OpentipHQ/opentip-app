@@ -1,0 +1,13 @@
+.git
+.github
+.next
+.vercel
+.local
+node_modules
+npm-debug.log*
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+
+src/generated

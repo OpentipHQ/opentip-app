@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import type { MarketingApplicationStatus } from "@/lib/beta/marketing-applications";
 import {
   approveApplication,
@@ -28,16 +28,16 @@ export function ReviewActions({
         <form action={approveApplication}>
           <input type="hidden" name="id" value={id} />
           <input type="hidden" name="returnTo" value={returnTo} />
-          <Button type="submit" size={size}>
+          <SubmitButton size={size} loadingText="Approving...">
             Approve
-          </Button>
+          </SubmitButton>
         </form>
         <form action={rejectApplication}>
           <input type="hidden" name="id" value={id} />
           <input type="hidden" name="returnTo" value={returnTo} />
-          <Button type="submit" size={size} variant="outline">
+          <SubmitButton size={size} variant="outline" loadingText="Rejecting...">
             Reject
-          </Button>
+          </SubmitButton>
         </form>
       </div>
     );
@@ -50,17 +50,17 @@ export function ReviewActions({
           <form action={approveApplication}>
             <input type="hidden" name="id" value={id} />
             <input type="hidden" name="returnTo" value={returnTo} />
-            <Button type="submit" size={size}>
+            <SubmitButton size={size} loadingText="Granting...">
               Grant access
-            </Button>
+            </SubmitButton>
           </form>
         ) : null}
         <form action={resendApplicationInvite}>
           <input type="hidden" name="id" value={id} />
           <input type="hidden" name="returnTo" value={returnTo} />
-          <Button type="submit" size={size} variant="outline">
+          <SubmitButton size={size} variant="outline" loadingText="Resending...">
             Resend invite
-          </Button>
+          </SubmitButton>
         </form>
       </div>
     );
@@ -71,9 +71,9 @@ export function ReviewActions({
       <form action={revokeApplicationAccess}>
         <input type="hidden" name="id" value={id} />
         <input type="hidden" name="returnTo" value={returnTo} />
-        <Button type="submit" size={size} variant="destructive">
+        <SubmitButton size={size} variant="destructive" loadingText="Revoking...">
           Revoke access
-        </Button>
+        </SubmitButton>
       </form>
     );
   }

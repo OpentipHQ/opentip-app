@@ -1,5 +1,5 @@
 import { PageHeader } from "@/components/shell/page-header";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -54,7 +54,7 @@ export default async function InvitesPage({
                   required
                   rows={5}
                   placeholder="one@example.com&#10;two@example.com"
-                  className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm outline-none focus:border-foreground"
+                  className="w-full rounded-control border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground"
                 />
               </Field>
               <Field>
@@ -62,9 +62,9 @@ export default async function InvitesPage({
                 <Input id="wave" name="wave" type="number" min={1} defaultValue={Number(params.wave ?? 1)} />
               </Field>
             </FieldGroup>
-            <Button type="submit" className="w-fit">
+            <SubmitButton className="w-fit" loadingText="Sending...">
               Send wave
-            </Button>
+            </SubmitButton>
           </form>
           {note ? <p className="mt-4 text-sm text-muted-foreground">{note}</p> : null}
         </CardContent>

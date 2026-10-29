@@ -10,6 +10,8 @@ export type SiteCard = {
   theme: "LEDGER" | "MINIMAL";
   primaryColor: string;
   pageCount: number;
+  pendingReviews: number;
+  latestBuildStatus: string | null;
   preview: boolean;
 };
 
@@ -62,6 +64,8 @@ export async function loadSiteCards(session: Session): Promise<{
             theme: sample.theme,
             primaryColor: sample.primaryColor,
             pageCount: sample.pages.length,
+            pendingReviews: 0,
+            latestBuildStatus: null,
             preview: true,
           },
         ],
@@ -71,7 +75,22 @@ export async function loadSiteCards(session: Session): Promise<{
   try {
     const sites = await prisma.site.findMany({
       where: { ownerId: session.userId },
-      include: { _count: { select: { pages: true } } },
+      include: {
+        _count: { select: { pages: true } },
+        revisions: {
+          where: { status: "PENDING" },
+          select: { id: true },
+        },
+        repo: {
+          select: {
+            jobs: {
+              orderBy: { createdAt: "desc" },
+              take: 1,
+              select: { status: true },
+            },
+          },
+        },
+      },
       orderBy: { createdAt: "desc" },
     });
     return {
@@ -84,6 +103,8 @@ export async function loadSiteCards(session: Session): Promise<{
         theme: site.theme,
         primaryColor: site.primaryColor,
         pageCount: site._count.pages,
+        pendingReviews: site.revisions.length,
+        latestBuildStatus: site.repo.jobs[0]?.status ?? null,
         preview: false,
       })),
     };

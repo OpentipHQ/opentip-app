@@ -1,7 +1,6 @@
 "use server";
 
 import { randomBytes } from "node:crypto";
-import { redirect } from "next/navigation";
 import { logActivity } from "@/lib/admin/activity";
 import { requireWritableAdminAction } from "@/lib/admin/guard";
 import { grantBetaAccess } from "@/lib/beta/access";
@@ -9,6 +8,7 @@ import { appUrl } from "@/lib/config";
 import { getPrisma } from "@/lib/db";
 import { normalizeEmail } from "@/lib/auth/login-code";
 import { sendBetaInviteEmail } from "@/lib/email/resend";
+import { redirectWithToast } from "@/lib/toast-server";
 
 export async function createBetaInvite(formData: FormData) {
   const session = await requireWritableAdminAction();
@@ -24,8 +24,27 @@ export async function createBetaInvite(formData: FormData) {
   const waveValue = Number(formData.get("wave") ?? 1);
   const wave = Number.isFinite(waveValue) && waveValue > 0 ? Math.floor(waveValue) : 1;
   const prisma = getPrisma();
-  if (!prisma || emails.length === 0) redirect("/admin/invites?error=invalid");
-  if (emails.length > 50) redirect("/admin/invites?error=limit");
+  if (!prisma) {
+    return redirectWithToast(
+      "/admin/invites?error=invalid",
+      "error",
+      "The database is not connected.",
+    );
+  }
+  if (emails.length === 0) {
+    return redirectWithToast(
+      "/admin/invites?error=invalid",
+      "error",
+      "Add at least one valid email.",
+    );
+  }
+  if (emails.length > 50) {
+    return redirectWithToast(
+      "/admin/invites?error=limit",
+      "error",
+      "Send at most 50 emails per wave.",
+    );
+  }
 
   let sent = 0;
   let saved = 0;
@@ -57,5 +76,9 @@ export async function createBetaInvite(formData: FormData) {
     targetType: "betaInvite",
     metadata: { wave, emails: emails.length, sent, saved },
   });
-  redirect(`/admin/invites?saved=${saved}&sent=${sent}&wave=${wave}`);
+  return redirectWithToast(
+    `/admin/invites?saved=${saved}&sent=${sent}&wave=${wave}`,
+    "success",
+    `${saved} invites saved. ${sent} emails sent.`,
+  );
 }

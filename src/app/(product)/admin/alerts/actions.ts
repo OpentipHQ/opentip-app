@@ -1,10 +1,10 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { logActivity } from "@/lib/admin/activity";
 import { requireWritableAdminAction } from "@/lib/admin/guard";
 import { runSpendAlerts } from "@/lib/admin/spend-check";
+import { redirectWithToast } from "@/lib/toast-server";
 
 export async function checkSpendAlerts() {
   const session = await requireWritableAdminAction();
@@ -17,7 +17,9 @@ export async function checkSpendAlerts() {
     metadata: { ...result },
   });
   revalidatePath("/admin/alerts");
-  redirect(
+  return redirectWithToast(
     `/admin/alerts?checked=1&total=${result.dailyTotal.toFixed(2)}&outliers=${result.outlierCount}`,
+    "success",
+    `Spend check complete. ${result.outlierCount} outliers found.`,
   );
 }

@@ -161,8 +161,19 @@ async function applyEvent(args: {
     if (!githubRepoId || !after || after === "0000000000000000000000000000000000000000") {
       return { ignored: true };
     }
+    const ref = args.payload.ref;
+    if (ref && !ref.startsWith("refs/heads/")) {
+      return { ignored: true };
+    }
     const known = await args.repo.findRepoByGithubId(githubRepoId);
     if (!known) return { ignored: true };
+    if (!known.siteStatus || known.siteStatus === "PAUSED") {
+      return { ignored: true };
+    }
+    const branch = ref ? ref.slice("refs/heads/".length) : (known.defaultBranch ?? "main");
+    if (branch !== (known.defaultBranch ?? "main")) {
+      return { ignored: true };
+    }
     const job = await args.repo.enqueueJob({
       repoId: known.id,
       githubRepoId,

@@ -58,3 +58,35 @@ export async function reserveDailySpend(input: {
     { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
   );
 }
+
+export async function finalizeUsage(input: {
+  usageId: string;
+  promptTokens: number;
+  completionTokens: number;
+  estimatedCostUsd: number;
+}): Promise<void> {
+  const prisma = getPrisma();
+  if (!prisma) return;
+  await prisma.usageEntry.update({
+    where: { id: input.usageId },
+    data: {
+      status: "FINAL",
+      promptTokens: Math.max(0, Math.trunc(input.promptTokens)),
+      completionTokens: Math.max(0, Math.trunc(input.completionTokens)),
+      estimatedCostUsd: Math.max(0, input.estimatedCostUsd),
+    },
+  });
+}
+
+export async function releaseUsage(usageId: string | undefined): Promise<void> {
+  if (!usageId) return;
+  const prisma = getPrisma();
+  if (!prisma) return;
+  await prisma.usageEntry.deleteMany({ where: { id: usageId, status: "RESERVED" } });
+}
+
+export async function releaseUsageForJob(jobId: string): Promise<void> {
+  const prisma = getPrisma();
+  if (!prisma) return;
+  await prisma.usageEntry.deleteMany({ where: { jobId, status: "RESERVED" } });
+}

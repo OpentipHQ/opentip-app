@@ -31,7 +31,7 @@ Elijah still has to:
 
 Beta access is sent by email. The beta app is beta.opentip.tech. Email is branded HTML with a plain-text version. Transactional email covers sign-in codes, email-change codes, beta invites, beta approvals, and internal spend alerts. Announcements are product email and respect a signed opt-out link and one-click unsubscribe. There is no invented support or reply-to address.
 
-### Phase 2, docs engine and Copilot
+### Phase 2, docs engine and Copilot (implemented)
 
 - One worker, fed by the queue this app writes when a webhook arrives. It scales from zero. The host is an Azure Container App.
 - Job kinds: first build, push update, chat edit.
@@ -42,6 +42,8 @@ Beta access is sent by email. The beta app is beta.opentip.tech. Email is brande
 - Repo renamed, moved, or archived. The webhook handler records the rename and pauses on archive, delete, or transfer.
 - Webhooks that fail or arrive twice. Signature checks, a delivery id claim, and a job idempotency key are in this foundation. A failed claim is released so GitHub can retry.
 - Private repos are supported. Code is sent to xAI and Groq. That is covered in the Privacy policy. Private docs behind sign-in are a later paid feature, still undecided for the first paid plans.
+
+This repository now has the durable worker, job leases and retries, `JobEvent` progress, curated repo reading, `PageRevision` review and approval, the build progress page, and Chat edit. Deployment steps are in `docs/WORKER_DEPLOYMENT.md`.
 
 ### Phase 3, docs sites, branding, and SEO
 
@@ -133,18 +135,19 @@ Decided 23 Oct 2026.
 
 - Next.js App Router, TypeScript, Tailwind, shadcn.
 - Prisma schema and a SQL migration. Apply it with `prisma migrate deploy`. Do not use `db push`.
-- Models: users (role, profile picture URL, email sign-in switch, session version, suspension, credits), GitHub App installations (account avatar), repos (last push), sites (subdomain, custom domain, branding), pages, jobs, webhook deliveries and errors, chat edits, Changelog entries, plans, subscriptions, usage entries, beta invites, beta applications, email preferences, feedback, activity logs, announcements, and spend alerts. Login codes carry a purpose and optional user for email changes.
+- Models: users (role, profile picture URL, email sign-in switch, session version, suspension, credits), GitHub App installations (account avatar), repos (last push), sites (subdomain, custom domain, branding, review mode), pages, jobs (phase, progress, lease, attempts), job events, page revisions, webhook deliveries and errors, chat edits, Changelog entries, plans, subscriptions, usage entries, beta invites, beta applications, email preferences, feedback, activity logs, announcements, and spend alerts. Login codes carry a purpose and optional user for email changes.
 - Plan rows seeded by the migration: Free $0, Pro $20, Team $200. The billing page hides prices unless `SHOW_PLAN_PRICES=1`.
 - Closed beta. `/sign-up` and `/login` offer GitHub or a 6-digit email code. Codes expire in 10 minutes, are stored hashed, and stop after 5 attempts. Resend waits 60 seconds. There are no passwords and no magic links.
 - An email can sign in only after it is on `BetaAccess`, or listed in `ADMIN_EMAILS`. Admin reads the marketing site's `beta_application` table directly. Approving adds a local `BetaAccess` row and sends one access email. A failed email does not undo access, and the admin can resend it. Rejecting removes `BetaAccess` and increments the user's session version so active sessions stop. Emails in `ADMIN_EMAILS` are approved and receive the admin role the next time they sign in, which bootstraps the first admin. An unapproved email sees `/waitlist` and gets no session. The local `BetaApplication` model is unused.
 - GitHub and email can share one account when the emails match. A different GitHub account on the same email is refused.
 - Installing the GitHub App links the installation and repos to the account but creates zero sites. A GitHub install that arrives without the sign-in cookie does not show "sign-in attempt expired." It is held, then linked after an approved sign-in if the GitHub account or email matches. An unapproved install never links or creates sites.
-- `/dashboard` is the import view. It lists personal and organization accounts in a dropdown, supports server-side repo search and pagination, and imports one repo at a time. Import opens a dialog for the site name, subdomain, description, theme, and primary color. Build site creates only that repo's site in `PENDING` and a `FIRST_BUILD` job in `QUEUED`. It is idempotent, and an imported repo shows Imported. The Sites cards live at `/dashboard/sites`. Installing the GitHub App creates no sites.
+- `/dashboard` is the import view. It lists personal and organization accounts in a dropdown, supports server-side repo search and pagination, and imports one repo at a time. Import opens a dialog for the site name, subdomain, description, theme, primary color, and review mode. Auto-publish is the default, and review-first keeps generated changes pending until approval. Build site creates only that repo's site in `PENDING` and a `FIRST_BUILD` job in `QUEUED`. It is idempotent, and an imported repo shows Imported. The Sites cards live at `/dashboard/sites`. Installing the GitHub App creates no sites.
 - `/profile` covers a validated 2 MB profile picture in Vercel Blob (URL only in Postgres), display name, email change by code, GitHub link and unlink, email sign-in disable, connected GitHub accounts, sign out all devices, and typed-confirmation account deletion. At least one sign-in method must remain. Unlinking email keeps the address but disables email codes, and is allowed only while GitHub is linked. An email change carries the product-email preference to the new address. Account deletion removes it.
 - `/email/preferences` is public and token-signed. It controls announcement email only. Sign-in, beta access, and account email stay transactional.
 - GitHub App OAuth, setup URL, and `POST /api/webhooks/github`. The app slug defaults to `opentip-copilot` (`GITHUB_APP_SLUG`). The install URL is `https://github.com/apps/opentip-copilot/installations/new`.
 - Webhook signature check, idempotent enqueue, uninstall and suspend pause, removed-repo pause, rename, archive, delete, and transfer handling.
-- Copilot provider layer, caps, cached summary helper, and `runCopilotJob`.
+- Copilot provider layer, caps, cached summary helper, generation contract, curated repository context, and the durable worker queue.
+- Site management at `/dashboard/sites/[id]`, build progress at `/dashboard/sites/[id]/builds/[jobId]`, revision review at `/dashboard/sites/[id]/revisions/[revisionId]`, and Chat edit at `/dashboard/sites/[id]/chat`. The build page polls every 2 seconds and shows stage and `JobEvent` activity without prompts or spend. Owners can retry a terminal failed job from its build page.
 - Dashboard: Import, Sites, Changelog, Usage, Billing, and Profile. No credit or token figures on those pages.
 - Admin: applications with approve, reject, and resend access email, user search and detail with suspend and unsuspend, read-only act-as with a banner, AI usage and cost per user, jobs with live refresh and retry, plans plus manual credits, feedback, invites in waves of up to 50, GitHub installs plus webhook errors, honest empty ETH and USDC tip cards, announcements with optional email that respects opt-outs, spend alerts with dedupe and a protected cron route, and an activity log. Admin Reset is not built. Tips are read-only. Takedown tools are not built.
 - Public docs on `{subdomain}.opentip.tech` and on `{subdomain}.{APP_HOST}` (so `ledger.beta.opentip.tech` works during beta). Custom domains rewrite to the same renderer.
@@ -154,9 +157,9 @@ Decided 23 Oct 2026.
 
 ## What is stubbed
 
-- The Copilot worker process. Jobs are queued. Nothing runs them on a timer or a container yet. Clicking Build site creates a pending site row, and the worker still has to build it. The webhook enqueues a push only after a repo row exists.
-- Chat UI, approvals, and the "failed build keeps the live site" publish step. The skip rule for hand edits is a function the worker must call.
-- Email on uninstall, build failure, or domain status. Branded invite, approval, announcement, and spend-alert email is implemented. It no-ops without Resend outside production.
+- Email on uninstall, build failure, approval waiting, or domain status. Branded invite, approval, announcement, and spend-alert email is implemented. It no-ops without Resend outside production.
+- Worker database integration tests. The worker compiles and its pure logic is unit tested, but a real Postgres instance is still needed for claim, lease, and reaper tests.
+- Full repo indexing with per-file summaries. Phase 2 uses a curated tree and selected files.
 - Paddle checkout. Billing explains that checkout is not connected.
 - Tips. No tip button, no tip ledger, and no fabricated totals. The admin page is an honest empty state for ETH and USDC.
 - Custom domain HTTPS provisioning and status polling. The columns exist. The certificate flow does not.

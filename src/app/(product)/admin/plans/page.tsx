@@ -1,5 +1,5 @@
 import { PageHeader } from "@/components/shell/page-header";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getPrisma } from "@/lib/db";
@@ -71,7 +71,7 @@ export default async function PlansPage({
               </p>
             ) : (
               <form action={changeUserPlan} className="flex flex-col gap-3">
-                <select name="userId" required className="h-9 rounded-full border border-border bg-white px-3 text-sm">
+                <select name="userId" required className="h-9 rounded-control border border-border bg-background px-3 text-sm">
                   <option value="">Choose a user</option>
                   {users.map((user) => (
                     <option key={user.id} value={user.id}>
@@ -79,7 +79,7 @@ export default async function PlansPage({
                     </option>
                   ))}
                 </select>
-                <select name="planId" required className="h-9 rounded-full border border-border bg-white px-3 text-sm">
+                <select name="planId" required className="h-9 rounded-control border border-border bg-background px-3 text-sm">
                   <option value="">Choose a plan</option>
                   {dbPlans.map((plan) => (
                     <option key={plan.id} value={plan.id}>
@@ -87,9 +87,9 @@ export default async function PlansPage({
                     </option>
                   ))}
                 </select>
-                <Button type="submit" className="w-fit">
+                <SubmitButton className="w-fit" loadingText="Saving...">
                   Save plan
-                </Button>
+                </SubmitButton>
               </form>
             )}
           </CardContent>
@@ -101,7 +101,7 @@ export default async function PlansPage({
           </CardHeader>
           <CardContent>
             <form action={addCredits} className="flex flex-col gap-3">
-              <select name="userId" required className="h-9 rounded-full border border-border bg-white px-3 text-sm">
+              <select name="userId" required className="h-9 rounded-control border border-border bg-background px-3 text-sm">
                 <option value="">Choose a user</option>
                 {users.map((user) => (
                   <option key={user.id} value={user.id}>
@@ -117,11 +117,11 @@ export default async function PlansPage({
                 max="100000"
                 required
                 placeholder="USD, for example 25"
-                className="h-9 rounded-full border border-border bg-white px-4 text-sm"
+                className="h-9 rounded-control border border-border bg-background px-4 text-sm"
               />
-              <Button type="submit" className="w-fit">
+              <SubmitButton className="w-fit" loadingText="Adding...">
                 Add credits
-              </Button>
+              </SubmitButton>
             </form>
           </CardContent>
         </Card>

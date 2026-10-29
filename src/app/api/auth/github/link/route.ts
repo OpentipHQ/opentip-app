@@ -2,7 +2,8 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { getRequestSession, sessionCookieOptions } from "@/lib/auth";
 import { LINK_GITHUB_COOKIE } from "@/lib/auth/constants";
-import { requestOrigin } from "@/lib/auth/http";
+import { redirectWithCookies, requestOrigin } from "@/lib/auth/http";
+import { authErrors } from "@/lib/auth/messages";
 import { sessionSecret } from "@/lib/config";
 import { githubAuthorizeUrl, newOauthNonce } from "@/lib/github/app";
 import { OAUTH_STATE_COOKIE, signSession } from "@/lib/session";
@@ -12,10 +13,18 @@ export async function GET(request: Request) {
   const session = await getRequestSession();
   if (!session) return NextResponse.redirect(new URL("/login?next=/profile", origin));
   if (!process.env.GITHUB_CLIENT_ID || !process.env.GITHUB_CLIENT_SECRET) {
-    return NextResponse.redirect(new URL("/profile?error=github", origin));
+    return redirectWithCookies(origin, "/profile?error=github", [], {
+      tone: "error",
+      message: authErrors.github,
+    });
   }
   const secret = sessionSecret();
-  if (!secret) return NextResponse.redirect(new URL("/profile?error=session", origin));
+  if (!secret) {
+    return redirectWithCookies(origin, "/profile?error=session", [], {
+      tone: "error",
+      message: authErrors.session,
+    });
+  }
   const nonce = newOauthNonce();
   const jar = await cookies();
   const stateToken = await signSession(

@@ -31,6 +31,7 @@ export type ImportView = {
   page: number;
   query: string;
   hasNext: boolean;
+  isFirstSite: boolean;
 };
 
 export async function loadImportView(args: {
@@ -52,6 +53,7 @@ export async function loadImportView(args: {
       page,
       query,
       hasNext: false,
+      isFirstSite: false,
     };
   }
 
@@ -78,6 +80,7 @@ export async function loadImportView(args: {
       page,
       query,
       hasNext: false,
+      isFirstSite: false,
     };
   }
 
@@ -113,6 +116,7 @@ export async function loadImportView(args: {
     page,
     query,
     hasNext: page * IMPORT_PAGE_SIZE < total,
+    isFirstSite: (await prisma.site.count({ where: { ownerId: args.userId } })) === 0,
     repos: rows.map((row) => ({
       id: row.id,
       fullName: row.fullName,

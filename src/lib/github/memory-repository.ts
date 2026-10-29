@@ -45,7 +45,14 @@ export class MemoryWebhookRepository implements WebhookRepository {
   }
 
   async findRepoByGithubId(githubRepoId: string): Promise<KnownRepo | null> {
-    return this.repos.get(githubRepoId) ?? null;
+    const repo = this.repos.get(githubRepoId);
+    if (!repo) return null;
+    const site = this.sites.find((row) => row.repoGithubId === githubRepoId);
+    return {
+      ...repo,
+      defaultBranch: repo.defaultBranch ?? "main",
+      siteStatus: site?.status ?? null,
+    };
   }
 
   async enqueueJob(job: NewJob): Promise<{ id: string; created: boolean }> {

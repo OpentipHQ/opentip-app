@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useId, useState } from "react";
+import { useActionState, useEffect, useId, useState } from "react";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogClose,
@@ -28,13 +29,14 @@ import { importRepository } from "./actions";
 type ImportRepoDialogProps = {
   repo: ImportRepo;
   docsRoot: string;
+  isFirstSite: boolean;
 };
 
 function errorFor(state: ImportFormState, field: ImportField): string | undefined {
   return state.error?.field === field ? state.error.message : undefined;
 }
 
-function ImportForm({ repo, docsRoot }: ImportRepoDialogProps) {
+function ImportForm({ repo, docsRoot, isFirstSite }: ImportRepoDialogProps) {
   const id = useId();
   const [state, formAction, pending] = useActionState(
     importRepository,
@@ -42,13 +44,18 @@ function ImportForm({ repo, docsRoot }: ImportRepoDialogProps) {
   );
   const [subdomain, setSubdomain] = useState(repo.suggestedSubdomain);
   const [primaryColor, setPrimaryColor] = useState("#2A2AD6");
+  const [reviewMode, setReviewMode] = useState<"AUTO_PUBLISH" | "REVIEW">("AUTO_PUBLISH");
   const formError = state.error?.field === "form" ? state.error.message : undefined;
+
+  useEffect(() => {
+    if (formError) toast.error(formError);
+  }, [formError]);
 
   return (
     <form action={formAction} className="flex flex-col gap-5">
       <input type="hidden" name="repoId" value={repo.id} />
 
-      <div className="rounded-xl border border-border bg-muted/40 px-3 py-2">
+      <div className="rounded-control border border-border bg-muted/40 px-3 py-2">
         <p className="text-xs text-muted-foreground">Repository</p>
         <p className="truncate text-sm font-medium">{repo.fullName}</p>
       </div>
@@ -84,7 +91,7 @@ function ImportForm({ repo, docsRoot }: ImportRepoDialogProps) {
             aria-invalid={Boolean(errorFor(state, "subdomain"))}
             className="rounded-r-none border-r-0"
           />
-          <span className="flex items-center rounded-r-lg border border-input bg-muted px-2.5 text-sm text-muted-foreground">
+          <span className="flex items-center rounded-r-control border border-input bg-muted px-2.5 text-sm text-muted-foreground">
             .{docsRoot}
           </span>
         </div>
@@ -115,7 +122,7 @@ function ImportForm({ repo, docsRoot }: ImportRepoDialogProps) {
             name="theme"
             defaultValue="MINIMAL"
             aria-invalid={Boolean(errorFor(state, "theme"))}
-            className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20"
+            className="h-8 w-full rounded-control border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20"
           >
             <option value="MINIMAL">Minimal</option>
             <option value="LEDGER">Ledger</option>
@@ -143,6 +150,68 @@ function ImportForm({ repo, docsRoot }: ImportRepoDialogProps) {
         </Field>
       </div>
 
+      <Field data-invalid={Boolean(errorFor(state, "reviewMode"))}>
+        <FieldLabel>How should updates work?</FieldLabel>
+        <div className="grid gap-2">
+          <label
+            className={`cursor-pointer rounded-control border p-3 transition ${
+              reviewMode === "AUTO_PUBLISH"
+                ? "border-foreground bg-muted/40"
+                : "border-border bg-background"
+            }`}
+          >
+            <span className="flex items-start gap-3">
+              <input
+                type="radio"
+                name="reviewMode"
+                value="AUTO_PUBLISH"
+                checked={reviewMode === "AUTO_PUBLISH"}
+                onChange={() => setReviewMode("AUTO_PUBLISH")}
+                className="mt-1"
+              />
+              <span>
+                <span className="block text-sm font-medium">Auto-publish updates</span>
+                <span className="mt-1 block text-xs text-muted-foreground">
+                  When you push to GitHub, Opentip updates your live docs automatically. Best for most teams.
+                </span>
+              </span>
+            </span>
+          </label>
+          <label
+            className={`cursor-pointer rounded-control border p-3 transition ${
+              reviewMode === "REVIEW"
+                ? "border-foreground bg-muted/40"
+                : "border-border bg-background"
+            }`}
+          >
+            <span className="flex items-start gap-3">
+              <input
+                type="radio"
+                name="reviewMode"
+                value="REVIEW"
+                checked={reviewMode === "REVIEW"}
+                onChange={() => setReviewMode("REVIEW")}
+                className="mt-1"
+              />
+              <span>
+                <span className="block text-sm font-medium">Review changes first</span>
+                <span className="mt-1 block text-xs text-muted-foreground">
+                  Opentip prepares the changes, but your live docs stay unchanged until you approve them. Best for public or sensitive docs.
+                </span>
+              </span>
+            </span>
+          </label>
+        </div>
+        {isFirstSite ? (
+          <FieldDescription>
+            This is your first site. You can change this later in site settings.
+          </FieldDescription>
+        ) : (
+          <FieldDescription>You can change this later in site settings.</FieldDescription>
+        )}
+        <FieldError>{errorFor(state, "reviewMode")}</FieldError>
+      </Field>
+
       {formError ? <FieldError>{formError}</FieldError> : null}
 
       <p className="text-xs text-muted-foreground">
@@ -153,15 +222,15 @@ function ImportForm({ repo, docsRoot }: ImportRepoDialogProps) {
         <DialogClose render={<Button type="button" variant="outline" />}>
           Cancel
         </DialogClose>
-        <Button type="submit" disabled={pending}>
-          {pending ? "Starting build..." : "Build site"}
+        <Button type="submit" loading={pending} loadingText="Starting build...">
+          Build site
         </Button>
       </DialogFooter>
     </form>
   );
 }
 
-export function ImportRepoDialog({ repo, docsRoot }: ImportRepoDialogProps) {
+export function ImportRepoDialog({ repo, docsRoot, isFirstSite }: ImportRepoDialogProps) {
   return (
     <Dialog>
       <DialogTrigger render={<Button size="sm" />}>Import</DialogTrigger>
@@ -172,7 +241,7 @@ export function ImportRepoDialog({ repo, docsRoot }: ImportRepoDialogProps) {
             Name the site and choose how it looks. The first build starts when you click Build site.
           </DialogDescription>
         </DialogHeader>
-        <ImportForm repo={repo} docsRoot={docsRoot} />
+        <ImportForm repo={repo} docsRoot={docsRoot} isFirstSite={isFirstSite} />
       </DialogContent>
     </Dialog>
   );

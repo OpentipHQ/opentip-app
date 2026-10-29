@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/shell/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getPrisma } from "@/lib/db";
@@ -45,7 +46,7 @@ export default async function UsersPage({
           name="q"
           defaultValue={q}
           placeholder="Search login, name, or email"
-          className="h-9 flex-1 rounded-full border border-border bg-white px-4 text-sm outline-none focus:border-foreground"
+          className="h-9 flex-1 rounded-control border border-border bg-background px-4 text-sm outline-none focus:border-foreground"
         />
         <Button type="submit" variant="outline">
           Search
@@ -88,23 +89,23 @@ export default async function UsersPage({
                     <div className="flex flex-wrap gap-2">
                       <form action={startActAs}>
                         <input type="hidden" name="id" value={user.id} />
-                        <Button type="submit" size="sm" variant="outline">
+                        <SubmitButton size="sm" variant="outline" loadingText="Opening...">
                           View as
-                        </Button>
+                        </SubmitButton>
                       </form>
                       {user.suspendedAt ? (
                         <form action={unsuspendUser}>
                           <input type="hidden" name="id" value={user.id} />
-                          <Button type="submit" size="sm" variant="outline">
+                          <SubmitButton size="sm" variant="outline" loadingText="Restoring...">
                             Unsuspend
-                          </Button>
+                          </SubmitButton>
                         </form>
                       ) : (
                         <form action={suspendUser}>
                           <input type="hidden" name="id" value={user.id} />
-                          <Button type="submit" size="sm" variant="destructive">
+                          <SubmitButton size="sm" variant="destructive" loadingText="Suspending...">
                             Suspend
-                          </Button>
+                          </SubmitButton>
                         </form>
                       )}
                     </div>

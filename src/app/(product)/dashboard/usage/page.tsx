@@ -19,7 +19,7 @@ export default async function UsagePage() {
     <>
       <PageHeader
         title="Usage"
-        description="Sites, published pages, and builds on your account. Token totals and estimated spend stay on the admin usage page."
+        description="Sites, published pages, and builds on your account."
       />
       {!usage.connected ? (
         <Alert>

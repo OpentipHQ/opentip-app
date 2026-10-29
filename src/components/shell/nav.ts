@@ -4,9 +4,6 @@ export const dashboardNav: ShellItem[] = [
   { href: "/dashboard", label: "Import" },
   { href: "/dashboard/sites", label: "Sites" },
   { href: "/dashboard/worklog", label: "Changelog" },
-  { href: "/dashboard/usage", label: "Usage" },
-  { href: "/dashboard/billing", label: "Billing" },
-  { href: "/profile", label: "Profile" },
 ];
 
 export const adminNav: ShellItem[] = [

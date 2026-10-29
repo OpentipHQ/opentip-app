@@ -23,6 +23,10 @@ function store(overrides: Partial<ImportStore> = {}): ImportStore {
   };
 }
 
+function mockStore(overrides: Partial<ImportStore> = {}) {
+  return store(overrides);
+}
+
 function input(overrides: Partial<ImportRepoInput> = {}): ImportRepoInput {
   return {
     repoId: "repo_1",
@@ -32,6 +36,7 @@ function input(overrides: Partial<ImportRepoInput> = {}): ImportRepoInput {
     description: "API docs",
     theme: "LEDGER",
     primaryColor: "#1122AA",
+    reviewMode: "AUTO_PUBLISH",
     ...overrides,
   };
 }
@@ -49,8 +54,23 @@ describe("repo import", () => {
       description: "API docs",
       theme: "LEDGER",
       primaryColor: "#1122aa",
+      reviewMode: "AUTO_PUBLISH",
       idempotencyKey: "first-build:repo_1",
     });
+  });
+
+  it("validates and normalizes the review mode", async () => {
+    const rejected = await importRepo(mockStore(), input({ reviewMode: "sometimes" }));
+    expect(rejected).toEqual({
+      status: "invalid",
+      field: "reviewMode",
+      message: "Choose auto-publish or review first.",
+    });
+    const accepted = mockStore();
+    await importRepo(accepted, input({ reviewMode: "review" }));
+    expect(accepted.createSiteAndJob).toHaveBeenCalledWith(
+      expect.objectContaining({ reviewMode: "REVIEW" }),
+    );
   });
 
   it("stores an empty description as null", async () => {

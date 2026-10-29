@@ -10,6 +10,7 @@ import {
 import { verifyLoginCode } from "@/lib/auth/email-flow";
 import { claimPendingForUser, safeRelativePath } from "@/lib/auth/gate";
 import { redirectWithCookies, requestOrigin } from "@/lib/auth/http";
+import { authErrors } from "@/lib/auth/messages";
 import { normalizeEmail } from "@/lib/auth/login-code";
 import { consumePendingInstall, readPendingInstall } from "@/lib/auth/pending-store";
 import { findUserByGithubId, linkInstallForUser, updateAppUser } from "@/lib/auth/users";
@@ -21,17 +22,28 @@ export async function POST(request: Request) {
   const jar = await cookies();
   const pending = secret ? await verifySession(jar.get(LOGIN_EMAIL_COOKIE)?.value, secret) : null;
   const email = pending && pending.userId === EMAIL_CODE_USER ? normalizeEmail(pending.login) : null;
-  if (!email || !secret) return redirectWithCookies(origin, "/login?error=missing", []);
+  if (!email || !secret) {
+    return redirectWithCookies(origin, "/login?error=missing", [], {
+      tone: "error",
+      message: authErrors.missing,
+    });
+  }
 
   const form = await request.formData();
   const result = await verifyLoginCode({ email, code: String(form.get("code") ?? "") });
   if (result.status === "waitlist") {
-    return redirectWithCookies(origin, "/waitlist", [
-      { name: SESSION_COOKIE, value: "", maxAge: 0 },
-    ]);
+    return redirectWithCookies(
+      origin,
+      "/waitlist",
+      [{ name: SESSION_COOKIE, value: "", maxAge: 0 }],
+      { tone: "info", message: "You are on the waitlist for now." },
+    );
   }
   if (result.status !== "ok") {
-    return redirectWithCookies(origin, `/login/code?error=${result.status}`, []);
+    return redirectWithCookies(origin, `/login/code?error=${result.status}`, [], {
+      tone: "error",
+      message: authErrors[result.status] ?? "That code could not be verified.",
+    });
   }
 
   const held = await readPendingInstall(jar.get(PENDING_INSTALL_COOKIE)?.value);
@@ -63,5 +75,8 @@ export async function POST(request: Request) {
   if (claim.consumed) {
     cookiesOut.push({ name: PENDING_INSTALL_COOKIE, value: "", maxAge: 0 });
   }
-  return redirectWithCookies(origin, next, cookiesOut);
+  return redirectWithCookies(origin, next, cookiesOut, {
+    tone: "success",
+    message: "Signed in.",
+  });
 }

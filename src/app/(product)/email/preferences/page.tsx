@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { OpentipMark } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import {
   loadAnnouncementPreference,
   readEmailPreferenceToken,
@@ -103,7 +104,7 @@ export default async function EmailPreferencesPage({
 
         <form action={updateEmailPreferences} className="flex flex-col gap-4">
           <input type="hidden" name="token" value={token} />
-          <label className="flex items-start gap-3 rounded-xl border border-border bg-white p-4 text-sm">
+          <label className="flex items-start gap-3 rounded-control border border-border bg-background p-4 text-sm">
             <input
               type="checkbox"
               name="announcements"
@@ -122,18 +123,18 @@ export default async function EmailPreferencesPage({
             transactional and are not controlled by this setting.
           </p>
           <div className="flex flex-wrap gap-2">
-            <Button type="submit" className="flex-1">
+            <SubmitButton className="flex-1" loadingText="Saving...">
               Save preferences
-            </Button>
-            <Button
-              type="submit"
+            </SubmitButton>
+            <SubmitButton
               name="intent"
               value="unsubscribe"
               variant="outline"
               className="flex-1"
+              loadingText="Saving..."
             >
               Unsubscribe
-            </Button>
+            </SubmitButton>
           </div>
         </form>
       </div>

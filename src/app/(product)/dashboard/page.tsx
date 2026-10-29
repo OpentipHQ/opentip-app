@@ -46,7 +46,7 @@ export default async function ImportPage({
     <>
       <PageHeader
         title="Import a repo"
-        description="Choose a GitHub account and pick a repo. Name the site, then start the first build. No repo is imported until you click Build site."
+        description="Choose a GitHub account and pick a repo. Name the site, then start the first build."
         action={
           <Button nativeButton={false} variant="outline" render={<a href={installUrl} />}>
             Add GitHub Scope
@@ -91,7 +91,7 @@ export default async function ImportPage({
                 name="q"
                 defaultValue={view.query}
                 placeholder="Search repositories"
-                className="h-9 w-full rounded-full border border-border bg-white pr-3 pl-9 text-sm outline-none focus:border-foreground"
+                className="h-9 w-full rounded-control border border-border bg-background pr-3 pl-9 text-sm outline-none focus:border-foreground"
               />
             </label>
             <Button type="submit" variant="outline">
@@ -111,7 +111,7 @@ export default async function ImportPage({
               </EmptyHeader>
             </Empty>
           ) : (
-            <div className="overflow-hidden rounded-2xl border border-border bg-white">
+            <div className="overflow-hidden rounded-control border border-border bg-background">
               <div className="divide-y divide-border">
                 {view.repos.map((repo) => (
                   <div
@@ -138,7 +138,11 @@ export default async function ImportPage({
                     {repo.imported ? (
                       <span className="text-sm text-muted-foreground">Imported</span>
                     ) : (
-                      <ImportRepoDialog repo={repo} docsRoot={docsRoot} />
+                      <ImportRepoDialog
+                        repo={repo}
+                        docsRoot={docsRoot}
+                        isFirstSite={view.isFirstSite}
+                      />
                     )}
                   </div>
                 ))}

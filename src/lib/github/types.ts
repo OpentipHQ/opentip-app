@@ -24,6 +24,8 @@ export type KnownRepo = {
   owner: string;
   name: string;
   installationGithubId: string;
+  defaultBranch?: string;
+  siteStatus?: "PENDING" | "ACTIVE" | "PAUSED" | null;
 };
 
 export interface WebhookRepository {

@@ -154,7 +154,7 @@ function DocsNav({
               key={item.slug || "home"}
               href={item.href}
               className={cn(
-                "rounded-full px-3 py-1.5 text-sm",
+                "rounded-control px-3 py-1.5 text-sm",
                 item.slug === currentSlug
                   ? "bg-accent text-(--docs-primary)"
                   : "text-foreground hover:bg-muted",

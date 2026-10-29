@@ -1,6 +1,6 @@
 import { PageHeader } from "@/components/shell/page-header";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getPrisma } from "@/lib/db";
 import { createAnnouncement, resendAnnouncement, toggleAnnouncement } from "./actions";
@@ -40,7 +40,7 @@ export default async function AnnouncementsPage({
               required
               maxLength={120}
               placeholder="Title"
-              className="h-9 rounded-full border border-border bg-white px-4 text-sm"
+              className="h-9 rounded-control border border-border bg-background px-4 text-sm"
             />
             <textarea
               name="body"
@@ -48,7 +48,7 @@ export default async function AnnouncementsPage({
               rows={5}
               maxLength={4000}
               placeholder="Body"
-              className="rounded-xl border border-border bg-white px-3 py-2 text-sm"
+              className="rounded-control border border-border bg-background px-3 py-2 text-sm"
             />
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" name="active" defaultChecked />
@@ -58,9 +58,9 @@ export default async function AnnouncementsPage({
               <input type="checkbox" name="email" />
               Email beta users who have not unsubscribed
             </label>
-            <Button type="submit" className="w-fit">
+            <SubmitButton className="w-fit" loadingText="Publishing...">
               Publish
-            </Button>
+            </SubmitButton>
           </form>
         </CardContent>
       </Card>
@@ -87,16 +87,16 @@ export default async function AnnouncementsPage({
             <div className="flex flex-wrap gap-2">
               <form action={toggleAnnouncement}>
                 <input type="hidden" name="id" value={row.id} />
-                <Button type="submit" size="sm" variant="outline">
+                <SubmitButton size="sm" variant="outline" loadingText="Saving...">
                   {row.active ? "Hide banner" : "Show banner"}
-                </Button>
+                </SubmitButton>
               </form>
               {row.emailRequested ? (
                 <form action={resendAnnouncement}>
                   <input type="hidden" name="id" value={row.id} />
-                  <Button type="submit" size="sm" variant="outline">
+                  <SubmitButton size="sm" variant="outline" loadingText="Sending...">
                     Send email again
-                  </Button>
+                  </SubmitButton>
                 </form>
               ) : null}
             </div>

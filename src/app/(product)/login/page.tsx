@@ -20,7 +20,7 @@ export default async function LoginPage({
   return (
     <AuthScreen
       title="Log in to Opentip"
-      subtitle="Continue with GitHub, or use a 6-digit code sent to your email. There is no password."
+      subtitle=""
       githubHref={`/api/auth/github${suffix}`}
       returnTo="login"
       nextPath={next}

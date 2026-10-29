@@ -3,6 +3,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { getRequestSession } from "@/lib/auth";
 import { getViewSession, readActAs } from "@/lib/admin/act-as";
 import { getPrisma } from "@/lib/db";
@@ -108,15 +109,20 @@ export default async function ProfilePage({
                 disabled={readOnly}
                 className="text-sm"
               />
-              <Button type="submit" size="sm" disabled={readOnly}>
+              <SubmitButton size="sm" disabled={readOnly} loadingText="Uploading...">
                 Upload
-              </Button>
+              </SubmitButton>
             </form>
             {user.imageUrl ? (
               <form action={removePicture}>
-                <Button type="submit" size="sm" variant="outline" disabled={readOnly}>
+                <SubmitButton
+                  size="sm"
+                  variant="outline"
+                  disabled={readOnly}
+                  loadingText="Removing..."
+                >
                   Remove
-                </Button>
+                </SubmitButton>
               </form>
             ) : null}
           </div>
@@ -136,13 +142,13 @@ export default async function ProfilePage({
               maxLength={80}
               required
               disabled={readOnly}
-              className="h-9 w-full rounded-full border border-border bg-white px-4 text-sm outline-none focus:border-foreground"
+              className="h-9 w-full rounded-control border border-border bg-background px-4 text-sm outline-none focus:border-foreground"
             />
           </CardContent>
           <CardFooter>
-            <Button type="submit" disabled={readOnly}>
+            <SubmitButton disabled={readOnly} loadingText="Saving...">
               Save name
-            </Button>
+            </SubmitButton>
           </CardFooter>
         </form>
       </Card>
@@ -164,12 +170,12 @@ export default async function ProfilePage({
                 required
                 defaultValue={params.sent ?? ""}
                 disabled={readOnly}
-                className="mt-1 h-9 w-full rounded-full border border-border bg-white px-4 outline-none focus:border-foreground"
+                className="mt-1 h-9 w-full rounded-control border border-border bg-background px-4 outline-none focus:border-foreground"
               />
             </label>
-            <Button type="submit" variant="outline" disabled={readOnly}>
+            <SubmitButton variant="outline" disabled={readOnly} loadingText="Sending...">
               Send code
-            </Button>
+            </SubmitButton>
           </form>
           <form action={confirmEmailChange} className="flex flex-wrap items-end gap-2">
             <label className="min-w-56 flex-1 text-sm">
@@ -180,7 +186,7 @@ export default async function ProfilePage({
                 required
                 defaultValue={params.sent ?? ""}
                 disabled={readOnly}
-                className="mt-1 h-9 w-full rounded-full border border-border bg-white px-4 outline-none focus:border-foreground"
+                className="mt-1 h-9 w-full rounded-control border border-border bg-background px-4 outline-none focus:border-foreground"
               />
             </label>
             <label className="text-sm">
@@ -192,12 +198,12 @@ export default async function ProfilePage({
                 maxLength={6}
                 required
                 disabled={readOnly}
-                className="mt-1 h-9 w-32 rounded-full border border-border bg-white px-4 font-mono outline-none focus:border-foreground"
+                className="mt-1 h-9 w-32 rounded-control border border-border bg-background px-4 font-mono outline-none focus:border-foreground"
               />
             </label>
-            <Button type="submit" disabled={readOnly}>
+            <SubmitButton disabled={readOnly} loadingText="Confirming...">
               Confirm
-            </Button>
+            </SubmitButton>
           </form>
         </CardContent>
       </Card>
@@ -208,7 +214,7 @@ export default async function ProfilePage({
           <CardDescription>Keep at least one method connected.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border p-3">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-control border border-border p-3">
             <div>
               <p className="text-sm font-medium">GitHub</p>
               <p className="text-xs text-muted-foreground">
@@ -217,14 +223,14 @@ export default async function ProfilePage({
             </div>
             {user.githubId ? (
               <form action={unlinkGithub}>
-                <Button
-                  type="submit"
+                <SubmitButton
                   size="sm"
                   variant="outline"
                   disabled={readOnly || !canUnlinkGithub(user)}
+                  loadingText="Unlinking..."
                 >
                   Unlink
-                </Button>
+                </SubmitButton>
               </form>
             ) : (
               <Button
@@ -237,7 +243,7 @@ export default async function ProfilePage({
               </Button>
             )}
           </div>
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border p-3">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-control border border-border p-3">
             <div>
               <p className="text-sm font-medium">Email code</p>
               <p className="text-xs text-muted-foreground">
@@ -246,14 +252,14 @@ export default async function ProfilePage({
             </div>
             {user.emailSignInEnabled ? (
               <form action={unlinkEmail}>
-                <Button
-                  type="submit"
+                <SubmitButton
                   size="sm"
                   variant="outline"
                   disabled={readOnly || !canUnlinkEmail(user)}
+                  loadingText="Disabling..."
                 >
                   Disable
-                </Button>
+                </SubmitButton>
               </form>
             ) : (
               <Badge variant="secondary">Disabled</Badge>
@@ -276,7 +282,7 @@ export default async function ProfilePage({
             installations.map((installation) => (
               <div
                 key={installation.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border p-3"
+                className="flex flex-wrap items-center justify-between gap-3 rounded-control border border-border p-3"
               >
                 <div className="flex items-center gap-3">
                   <Avatar size="sm">
@@ -325,9 +331,13 @@ export default async function ProfilePage({
         </CardHeader>
         <CardFooter>
           <form action={signOutEverywhere}>
-            <Button type="submit" variant="outline" disabled={readOnly || !real}>
+            <SubmitButton
+              variant="outline"
+              disabled={readOnly || !real}
+              loadingText="Signing out..."
+            >
               Sign out all devices
-            </Button>
+            </SubmitButton>
           </form>
         </CardFooter>
       </Card>
@@ -347,13 +357,13 @@ export default async function ProfilePage({
               required
               disabled={readOnly}
               placeholder={user.login}
-              className="h-9 w-full rounded-full border border-border bg-white px-4 text-sm outline-none focus:border-foreground"
+              className="h-9 w-full rounded-control border border-border bg-background px-4 text-sm outline-none focus:border-foreground"
             />
           </CardContent>
           <CardFooter>
-            <Button type="submit" variant="destructive" disabled={readOnly}>
+            <SubmitButton variant="destructive" disabled={readOnly} loadingText="Deleting...">
               Delete account
-            </Button>
+            </SubmitButton>
           </CardFooter>
         </form>
       </Card>

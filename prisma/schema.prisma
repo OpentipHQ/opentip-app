@@ -41,6 +41,7 @@ enum JobKind {
   FIRST_BUILD
   PUSH_UPDATE
   CHAT_EDIT
+  SUMMARY_REFRESH
 }
 
 enum JobStatus {
@@ -49,6 +50,38 @@ enum JobStatus {
   SUCCEEDED
   FAILED
   CANCELLED
+}
+
+enum JobPhase {
+  QUEUED
+  READING_REPO
+  GENERATING
+  VALIDATING
+  PUBLISHING
+  COMPLETE
+}
+
+enum ReviewMode {
+  AUTO_PUBLISH
+  REVIEW
+}
+
+enum RevisionStatus {
+  PENDING
+  PUBLISHED
+  REJECTED
+  SUPERSEDED
+}
+
+enum RevisionSource {
+  FIRST_BUILD
+  PUSH_UPDATE
+  CHAT_EDIT
+}
+
+enum RevisionAction {
+  UPSERT
+  DELETE
 }
 
 enum JobProvider {
@@ -147,6 +180,7 @@ model Site {
   customDomainStatus String?
   status             SiteStatus @default(PENDING)
   pausedReason       String?
+  reviewMode         ReviewMode @default(AUTO_PUBLISH)
   theme              SiteTheme  @default(MINIMAL)
   appearance         Appearance @default(SYSTEM)
   primaryColor       String     @default("#2A2AD6")
@@ -158,6 +192,7 @@ model Site {
   ogImageUrl         String?
   description        String?
   pages              Page[]
+  revisions          PageRevision[]
   worklog            WorklogEntry[]
   chatEdits          ChatEdit[]
   createdAt          DateTime   @default(now())
@@ -182,6 +217,7 @@ model Page {
   noindex     Boolean  @default(false)
   ogImageUrl  String?
   chatEdits   ChatEdit[]
+  revisions   PageRevision[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -195,6 +231,9 @@ model Job {
   repo             Repo        @relation(fields: [repoId], references: [id], onDelete: Cascade)
   kind             JobKind
   status           JobStatus   @default(QUEUED)
+  phase            JobPhase    @default(QUEUED)
+  progress         Int         @default(0)
+  detail           String?
   provider         JobProvider
   model            String
   idempotencyKey   String      @unique
@@ -204,14 +243,67 @@ model Job {
   promptTokens     Int         @default(0)
   completionTokens Int         @default(0)
   estimatedCostUsd Decimal     @default(0) @db.Decimal(12, 6)
+  attempts         Int         @default(0)
+  maxAttempts      Int         @default(3)
+  availableAt      DateTime    @default(now())
+  leaseUntil       DateTime?
+  lockedBy         String?
+  lastHeartbeatAt  DateTime?
   chatEdit         ChatEdit?
-  usage            UsageEntry?
+  usage            UsageEntry[]
+  revisions        PageRevision[]
+  events           JobEvent[]
   createdAt        DateTime    @default(now())
   startedAt        DateTime?
   finishedAt       DateTime?
 
   @@index([repoId, createdAt])
-  @@index([status])
+  @@index([status, availableAt])
+  @@index([leaseUntil])
+}
+
+model JobEvent {
+  id        String   @id @default(cuid())
+  jobId     String
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  sequence  Int
+  level     String   @default("info")
+  message   String   @db.Text
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@unique([jobId, sequence])
+  @@index([jobId, createdAt])
+}
+
+model PageRevision {
+  id          String         @id @default(cuid())
+  siteId      String
+  site        Site           @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  pageId      String?
+  page        Page?          @relation(fields: [pageId], references: [id], onDelete: SetNull)
+  jobId       String?
+  job         Job?           @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  action      RevisionAction @default(UPSERT)
+  status      RevisionStatus @default(PENDING)
+  source      RevisionSource
+  slug        String
+  section     String?
+  title       String
+  description String?
+  content     String         @db.Text
+  navOrder    Int            @default(0)
+  baseSha     String?
+  changeNote  String?
+  reviewNote  String?
+  publishedAt DateTime?
+  reviewedAt  DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([siteId, status, createdAt])
+  @@index([pageId])
+  @@index([jobId])
 }
 
 model WebhookDelivery {
@@ -287,7 +379,7 @@ model UsageEntry {
   id               String      @id @default(cuid())
   repoId           String
   repo             Repo        @relation(fields: [repoId], references: [id], onDelete: Cascade)
-  jobId            String?     @unique
+  jobId            String?
   job              Job?        @relation(fields: [jobId], references: [id], onDelete: SetNull)
   day              DateTime    @db.Date
   provider         JobProvider
@@ -300,6 +392,7 @@ model UsageEntry {
 
   @@index([repoId, day])
   @@index([day])
+  @@index([jobId])
 }
 
 model BetaInvite {

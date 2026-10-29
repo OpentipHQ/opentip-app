@@ -3,6 +3,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { flashToast, redirectWithToast } from "@/lib/toast-server";
 import { requireUserAction } from "@/lib/admin/guard";
 import { logActivity } from "@/lib/admin/activity";
 import { sessionCookieOptions } from "@/lib/auth";
@@ -25,9 +26,17 @@ function profileUrl(params: Record<string, string>): string {
 export async function updateDisplayName(formData: FormData) {
   const session = await requireUserAction();
   const name = String(formData.get("name") ?? "").trim().slice(0, 80);
-  if (!name) redirect(profileUrl({ error: "name" }));
+  if (!name) {
+    return redirectWithToast(profileUrl({ error: "name" }), "error", "Enter a display name.");
+  }
   const prisma = getPrisma();
-  if (!prisma) redirect(profileUrl({ error: "database" }));
+  if (!prisma) {
+    return redirectWithToast(
+      profileUrl({ error: "database" }),
+      "error",
+      "The database is not connected.",
+    );
+  }
   await prisma.user.update({ where: { id: session.userId }, data: { name } });
   await logActivity({
     actorId: session.userId,
@@ -37,15 +46,23 @@ export async function updateDisplayName(formData: FormData) {
     targetId: session.userId,
   });
   revalidatePath("/profile");
-  redirect(profileUrl({ saved: "name" }));
+  return redirectWithToast(profileUrl({ saved: "name" }), "success", "Name saved.");
 }
 
 export async function uploadPicture(formData: FormData) {
   const session = await requireUserAction();
   const file = formData.get("picture");
-  if (!(file instanceof File) || file.size === 0) redirect(profileUrl({ error: "image" }));
+  if (!(file instanceof File) || file.size === 0) {
+    return redirectWithToast(profileUrl({ error: "image" }), "error", "Choose an image to upload.");
+  }
   const prisma = getPrisma();
-  if (!prisma) redirect(profileUrl({ error: "database" }));
+  if (!prisma) {
+    return redirectWithToast(
+      profileUrl({ error: "database" }),
+      "error",
+      "The database is not connected.",
+    );
+  }
   const current = await prisma.user.findUnique({
     where: { id: session.userId },
     select: { imageUrl: true },
@@ -56,18 +73,36 @@ export async function uploadPicture(formData: FormData) {
     await deleteProfileImage(current?.imageUrl);
   } catch (error) {
     if (error instanceof ProfileStorageUnconfigured) {
-      redirect(profileUrl({ error: "blob" }));
+      return redirectWithToast(
+        profileUrl({ error: "blob" }),
+        "error",
+        "Image storage is not configured.",
+      );
     }
-    redirect(profileUrl({ error: "image" }));
+    return redirectWithToast(
+      profileUrl({ error: "image" }),
+      "error",
+      "Could not upload that image. Try another file.",
+    );
   }
   revalidatePath("/profile");
-  redirect(profileUrl({ saved: "picture" }));
+  return redirectWithToast(
+    profileUrl({ saved: "picture" }),
+    "success",
+    "Profile picture updated.",
+  );
 }
 
 export async function removePicture() {
   const session = await requireUserAction();
   const prisma = getPrisma();
-  if (!prisma) redirect(profileUrl({ error: "database" }));
+  if (!prisma) {
+    return redirectWithToast(
+      profileUrl({ error: "database" }),
+      "error",
+      "The database is not connected.",
+    );
+  }
   const current = await prisma.user.findUnique({
     where: { id: session.userId },
     select: { imageUrl: true },
@@ -75,37 +110,79 @@ export async function removePicture() {
   await prisma.user.update({ where: { id: session.userId }, data: { imageUrl: null } });
   await deleteProfileImage(current?.imageUrl);
   revalidatePath("/profile");
-  redirect(profileUrl({ saved: "picture" }));
+  return redirectWithToast(
+    profileUrl({ saved: "picture" }),
+    "success",
+    "Profile picture removed.",
+  );
 }
 
 export async function requestEmailChange(formData: FormData) {
   const session = await requireUserAction();
   const email = normalizeEmail(String(formData.get("email") ?? ""));
-  if (!email) redirect(profileUrl({ error: "email" }));
+  if (!email) {
+    return redirectWithToast(profileUrl({ error: "email" }), "error", "Enter a valid email address.");
+  }
   const prisma = getPrisma();
-  if (!prisma) redirect(profileUrl({ error: "database" }));
+  if (!prisma) {
+    return redirectWithToast(
+      profileUrl({ error: "database" }),
+      "error",
+      "The database is not connected.",
+    );
+  }
   const taken = await prisma.user.findUnique({ where: { email }, select: { id: true } });
-  if (taken && taken.id !== session.userId) redirect(profileUrl({ error: "email-taken" }));
+  if (taken && taken.id !== session.userId) {
+    return redirectWithToast(
+      profileUrl({ error: "email-taken" }),
+      "error",
+      "That email is already in use.",
+    );
+  }
   const result = await issueEmailChangeCode({ userId: session.userId, emailRaw: email });
   if (result.status !== "sent") {
-    redirect(profileUrl({ error: result.status === "cooldown" ? "cooldown" : "email-send" }));
+    return redirectWithToast(
+      profileUrl({ error: result.status === "cooldown" ? "cooldown" : "email-send" }),
+      "error",
+      result.status === "cooldown"
+        ? "Wait before requesting another code."
+        : "Could not send the code. Try again.",
+    );
   }
-  redirect(profileUrl({ sent: email }));
+  return redirectWithToast(
+    profileUrl({ sent: email }),
+    "success",
+    `Code sent to ${email}.`,
+  );
 }
 
 export async function confirmEmailChange(formData: FormData) {
   const session = await requireUserAction();
   const email = normalizeEmail(String(formData.get("email") ?? ""));
   const code = String(formData.get("code") ?? "");
-  if (!email) redirect(profileUrl({ error: "email" }));
+  if (!email) {
+    return redirectWithToast(profileUrl({ error: "email" }), "error", "Enter a valid email address.");
+  }
   const result = await verifyEmailChangeCode({
     userId: session.userId,
     emailRaw: email,
     code,
   });
-  if (result !== "ok") redirect(profileUrl({ error: result }));
+  if (result !== "ok") {
+    return redirectWithToast(
+      profileUrl({ error: result }),
+      "error",
+      "That code is invalid or expired.",
+    );
+  }
   const prisma = getPrisma();
-  if (!prisma) redirect(profileUrl({ error: "database" }));
+  if (!prisma) {
+    return redirectWithToast(
+      profileUrl({ error: "database" }),
+      "error",
+      "The database is not connected.",
+    );
+  }
   const current = await prisma.user.findUnique({
     where: { id: session.userId },
     select: { email: true },
@@ -149,7 +226,13 @@ export async function confirmEmailChange(formData: FormData) {
       });
     });
   } catch (error) {
-    if (isUniqueConstraint(error)) redirect(profileUrl({ error: "email-taken" }));
+    if (isUniqueConstraint(error)) {
+      return redirectWithToast(
+        profileUrl({ error: "email-taken" }),
+        "error",
+        "That email is already in use.",
+      );
+    }
     throw error;
   }
   await logActivity({
@@ -162,19 +245,30 @@ export async function confirmEmailChange(formData: FormData) {
   });
   const jar = await cookies();
   jar.set(SESSION_COOKIE, "", { ...sessionCookieOptions(0), maxAge: 0 });
+  await flashToast("success", "Email changed. Sign in again.");
   redirect("/login?email=changed");
 }
 
 export async function unlinkGithub() {
   const session = await requireUserAction();
   const prisma = getPrisma();
-  if (!prisma) redirect(profileUrl({ error: "database" }));
+  if (!prisma) {
+    return redirectWithToast(
+      profileUrl({ error: "database" }),
+      "error",
+      "The database is not connected.",
+    );
+  }
   const user = await prisma.user.findUnique({
     where: { id: session.userId },
     select: { githubId: true, email: true, emailSignInEnabled: true },
   });
   if (!user || !user.githubId || !canUnlinkGithub(user)) {
-    redirect(profileUrl({ error: "last-method" }));
+    return redirectWithToast(
+      profileUrl({ error: "last-method" }),
+      "error",
+      "Keep at least one sign-in method connected.",
+    );
   }
   await prisma.user.update({ where: { id: session.userId }, data: { githubId: null } });
   await logActivity({
@@ -185,19 +279,33 @@ export async function unlinkGithub() {
     targetId: session.userId,
   });
   revalidatePath("/profile");
-  redirect(profileUrl({ saved: "github-unlinked" }));
+  return redirectWithToast(
+    profileUrl({ saved: "github-unlinked" }),
+    "success",
+    "GitHub disconnected.",
+  );
 }
 
 export async function unlinkEmail() {
   const session = await requireUserAction();
   const prisma = getPrisma();
-  if (!prisma) redirect(profileUrl({ error: "database" }));
+  if (!prisma) {
+    return redirectWithToast(
+      profileUrl({ error: "database" }),
+      "error",
+      "The database is not connected.",
+    );
+  }
   const user = await prisma.user.findUnique({
     where: { id: session.userId },
     select: { githubId: true, email: true, emailSignInEnabled: true },
   });
   if (!user || !user.email || !canUnlinkEmail(user)) {
-    redirect(profileUrl({ error: "last-method" }));
+    return redirectWithToast(
+      profileUrl({ error: "last-method" }),
+      "error",
+      "Keep at least one sign-in method connected.",
+    );
   }
   await prisma.user.update({
     where: { id: session.userId },
@@ -211,7 +319,11 @@ export async function unlinkEmail() {
     targetId: session.userId,
   });
   revalidatePath("/profile");
-  redirect(profileUrl({ saved: "email-unlinked" }));
+  return redirectWithToast(
+    profileUrl({ saved: "email-unlinked" }),
+    "success",
+    "Email sign-in disabled.",
+  );
 }
 
 export async function signOutEverywhere() {
@@ -225,6 +337,7 @@ export async function signOutEverywhere() {
   }
   const jar = await cookies();
   jar.set(SESSION_COOKIE, "", { ...sessionCookieOptions(0), maxAge: 0 });
+  await flashToast("success", "Signed out everywhere.");
   redirect("/login?signed-out=all");
 }
 
@@ -232,13 +345,23 @@ export async function deleteAccount(formData: FormData) {
   const session = await requireUserAction();
   const typed = String(formData.get("confirm") ?? "");
   const prisma = getPrisma();
-  if (!prisma) redirect(profileUrl({ error: "database" }));
+  if (!prisma) {
+    return redirectWithToast(
+      profileUrl({ error: "database" }),
+      "error",
+      "The database is not connected.",
+    );
+  }
   const user = await prisma.user.findUnique({
     where: { id: session.userId },
     select: { login: true, email: true, imageUrl: true },
   });
   if (!user || !deleteConfirmationMatches(typed, user.login)) {
-    redirect(profileUrl({ error: "confirm" }));
+    return redirectWithToast(
+      profileUrl({ error: "confirm" }),
+      "error",
+      "Type your username exactly to confirm.",
+    );
   }
   await logActivity({
     actorId: session.userId,
@@ -257,5 +380,6 @@ export async function deleteAccount(formData: FormData) {
   await deleteProfileImage(user.imageUrl);
   const jar = await cookies();
   jar.set(SESSION_COOKIE, "", { ...sessionCookieOptions(0), maxAge: 0 });
+  await flashToast("success", "Your account was deleted.");
   redirect("/");
 }

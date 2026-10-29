@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { sessionCookieOptions } from "@/lib/auth";
+import { encodeToast, TOAST_COOKIE, TOAST_MAX_AGE, type ToastTone } from "@/lib/toast";
 
 export function requestOrigin(request: Request): string {
   const url = new URL(request.url);
@@ -15,10 +16,20 @@ export function redirectWithCookies(
   origin: string,
   path: string,
   cookies: Array<{ name: string; value: string; maxAge: number }>,
+  toast?: { tone: ToastTone; message: string },
 ) {
   const response = NextResponse.redirect(new URL(path, origin));
   for (const cookie of cookies) {
     response.cookies.set(cookie.name, cookie.value, sessionCookieOptions(Math.max(0, cookie.maxAge)));
+  }
+  if (toast) {
+    response.cookies.set(TOAST_COOKIE, encodeToast(toast), {
+      path: "/",
+      maxAge: TOAST_MAX_AGE,
+      sameSite: "lax",
+      httpOnly: false,
+      secure: process.env.NODE_ENV === "production",
+    });
   }
   return response;
 }

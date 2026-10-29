@@ -57,6 +57,7 @@ export function createPrismaImportStore(): ImportStore | null {
             description: input.description,
             theme: input.theme,
             primaryColor: input.primaryColor,
+            reviewMode: input.reviewMode,
             status: "PENDING",
           },
           select: { id: true },

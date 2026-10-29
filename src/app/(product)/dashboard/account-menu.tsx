@@ -31,7 +31,7 @@ export function ImportAccountMenu({
         render={
           <button
             type="button"
-            className="flex w-full items-center justify-between gap-3 rounded-2xl border border-border bg-white px-4 py-3 text-left"
+            className="flex w-full items-center justify-between gap-3 rounded-control border border-border bg-background px-4 py-3 text-left"
           >
             <span className="flex min-w-0 items-center gap-3">
               {selected ? (

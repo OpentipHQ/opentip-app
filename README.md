@@ -23,6 +23,12 @@ Use `migrate deploy` (or `migrate dev` on your own machine). Do not use `db push
 npm run dev
 ```
 
+The docs worker is separate. In production it runs as an Azure Container App, not on Vercel. See [docs/WORKER_DEPLOYMENT.md](docs/WORKER_DEPLOYMENT.md). Locally, after the app and database are running:
+
+```bash
+npm run worker
+```
+
 Open http://localhost:3000.
 
 Without `DATABASE_URL`, the dashboard and a preview docs site still render. Set `AUTH_DEV_BYPASS=1` to open the dashboard without GitHub. That flag is ignored when `NODE_ENV` is production.
@@ -57,6 +63,7 @@ Spend alerts use `SPEND_ALERT_DAILY_USD`, `SPEND_ALERT_USER_USD`, `SPEND_ALERT_U
 - `npm run typecheck` runs `tsc --noEmit`.
 - `npm test` runs the unit tests.
 - `npm run email:preview` renders sample emails to `.local/email-preview`.
+- `npm run worker` runs the Copilot worker. `npm run worker:dev` watches it.
 - `npm run build` generates the Prisma client and builds Next.js.
 
 ## Where things live
@@ -65,10 +72,13 @@ Spend alerts use `SPEND_ALERT_DAILY_USD`, `SPEND_ALERT_USER_USD`, `SPEND_ALERT_U
 - `src/app/api/webhooks/github` verifies the webhook and enqueues a job once.
 - `src/app/api/auth/github` is GitHub sign-in. `src/app/api/auth/email` sends and checks the 6-digit code.
 - `public/brand` and `public/icons` are the Opentip marks. Customer docs sites keep their own logos.
-- `src/lib/copilot` chooses xAI `grok-build-0.1` or Groq `gpt-oss-120b`, checks daily caps, and caches repo summaries.
+- `src/lib/copilot` chooses xAI `grok-build-0.1` or Groq `gpt-oss-120b`, checks daily caps, parses the generation contract, and builds curated repo context.
+- `src/worker` claims queued jobs with leases, reads GitHub, generates pages, writes `JobEvent` progress, and publishes or prepares revisions.
+- `src/lib/sites/publish.ts` applies drafts and handles revision approval and rejection.
+- `src/lib/github/repo-content.ts` reads the default branch tree, selected docs and source files, and push diffs.
 - `src/app/api/og` renders the signed social image.
 - `src/proxy.ts` sends `{subdomain}.opentip.tech` at the docs renderer and keeps `/dashboard`, `/profile`, and `/admin` signed in. It does not decide the admin role. Admin pages return 404 for non-admins.
-- `src/app/dashboard` is Import, Sites, Changelog, Usage, and Billing. Clicking Import opens a site dialog. Clicking Build site creates one pending site and one queued first-build job. Installing the GitHub App creates no sites.
+- `src/app/dashboard` is Import, Sites, site management, build progress, revision review, Chat edit, Changelog, Usage, and Billing. Clicking Import opens a site dialog. Clicking Build site creates one pending site and one queued first-build job, then opens the build page. Installing the GitHub App creates no sites.
 - `src/app/profile` is the profile picture, display name, email change, sign-in methods, connected GitHub accounts, sign-out-all, and account deletion.
 - `src/app/email/preferences` manages product email opt-outs with a signed link from an announcement. The one-click unsubscribe route is `/api/email/unsubscribe`.
 - `src/lib/email` renders branded templates, sends through Resend, signs preference links, and filters announcements by opt-out.
@@ -76,4 +86,4 @@ Spend alerts use `SPEND_ALERT_DAILY_USD`, `SPEND_ALERT_USER_USD`, `SPEND_ALERT_U
 
 ## Tests
 
-Unit tests cover webhook signatures and duplicate deliveries, daily spend caps, cached summaries, OG signatures, admin role enforcement, act-as write blocking, repo import idempotency, profile image validation and unlink rules, spend alert thresholds, marketing application mapping, beta application review flows, branded email rendering and transport, preference tokens, and announcement opt-out filtering. They do not need a database.
+Unit tests cover webhook signatures, duplicate deliveries, branch and paused-site guards, daily spend caps, cached summaries, OG signatures, admin role enforcement, act-as write blocking, repo import idempotency, profile image validation and unlink rules, spend alert thresholds, marketing application mapping, beta application review flows, branded email rendering and transport, preference tokens, and announcement opt-out filtering. They do not need a database. Worker database integration still needs a real Postgres instance.

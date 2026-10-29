@@ -25,7 +25,7 @@ export function DocsMarkdown({ content }: { content: string }) {
             <code className="rounded bg-muted px-1 py-0.5 font-mono text-[13px]">{children}</code>
           ),
           pre: ({ children }) => (
-            <pre className="overflow-x-auto rounded-xl border border-border bg-white p-4 font-mono text-[13px] leading-6">
+            <pre className="overflow-x-auto rounded-control border border-border bg-white p-4 font-mono text-[13px] leading-6">
               {children}
             </pre>
           ),

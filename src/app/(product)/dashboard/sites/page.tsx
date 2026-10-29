@@ -12,6 +12,11 @@ import { loadSiteCards } from "@/lib/view-data";
 export const dynamic = "force-dynamic";
 
 const statusLabel = { ACTIVE: "Live", PAUSED: "Paused", PENDING: "Pending build" } as const;
+
+function siteStatusLabel(site: { status: "ACTIVE" | "PAUSED" | "PENDING"; pendingReviews: number }) {
+  if (site.status === "PENDING" && site.pendingReviews > 0) return "Review needed";
+  return statusLabel[site.status];
+}
 const themeLabel = { LEDGER: "Ledger", MINIMAL: "Minimal" } as const;
 
 const resultCopy: Record<string, { title: string; description: string }> = {
@@ -40,7 +45,7 @@ export default async function SitesPage({
     <>
       <PageHeader
         title="Sites"
-        description="Sites created from imported repos. Pending sites stay here while their first build runs."
+        description="Sites created from imported repos."
         action={
           <Button nativeButton={false} variant="outline" render={<Link href="/dashboard" />}>
             Import a repo
@@ -88,8 +93,16 @@ export default async function SitesPage({
                   <CardDescription>
                     {site.subdomain}.{docsRootDomain()}
                   </CardDescription>
-                  <div className="flex gap-2">
-                    <Badge variant="outline">{statusLabel[site.status]}</Badge>
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant="outline">{siteStatusLabel(site)}</Badge>
+                    {site.pendingReviews > 0 ? (
+                      <Badge variant="secondary">
+                        {site.pendingReviews} pending
+                      </Badge>
+                    ) : null}
+                    {site.latestBuildStatus === "FAILED" ? (
+                      <Badge variant="destructive">Build failed</Badge>
+                    ) : null}
                     {site.preview ? <Badge variant="secondary">Preview</Badge> : null}
                   </div>
                 </CardHeader>
@@ -97,9 +110,21 @@ export default async function SitesPage({
                   <p className="text-sm text-muted-foreground">
                     {themeLabel[site.theme]} · {site.pageCount} pages
                   </p>
-                  <Button nativeButton={false} variant="outline" size="sm" render={<Link href={href} />}>
-                    Open
-                  </Button>
+                  <div className="flex shrink-0 gap-2">
+                    {!site.preview ? (
+                      <Button
+                        nativeButton={false}
+                        variant="outline"
+                        size="sm"
+                        render={<Link href={`/dashboard/sites/${site.id}`} />}
+                      >
+                        Manage
+                      </Button>
+                    ) : null}
+                    <Button nativeButton={false} variant="outline" size="sm" render={<Link href={href} />}>
+                      Open
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             );

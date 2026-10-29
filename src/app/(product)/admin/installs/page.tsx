@@ -74,7 +74,7 @@ export default async function InstallsPage() {
             <p className="text-sm text-muted-foreground">No webhook errors recorded.</p>
           ) : (
             errors.map((error) => (
-              <div key={error.id} className="rounded-xl border border-border p-3">
+              <div key={error.id} className="rounded-control border border-border p-3">
                 <p className="text-sm font-medium">
                   {error.event} {error.action ? `(${error.action})` : ""}
                 </p>

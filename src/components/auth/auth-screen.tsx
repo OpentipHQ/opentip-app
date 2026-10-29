@@ -3,6 +3,7 @@ import { OpentipMark } from "@/components/brand/logo";
 import { ResendCode } from "@/components/auth/resend-code";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { devBypassEnabled } from "@/lib/session";
 
 export function AuthScreen({
@@ -54,12 +55,12 @@ export function AuthScreen({
               required
               autoComplete="email"
               placeholder="you@example.com"
-              className="h-10 rounded-full px-4"
+              className="h-10 px-4"
             />
           </label>
-          <Button type="submit" size="lg" className="w-full">
+          <SubmitButton size="lg" className="w-full" loadingText="Sending...">
             Continue
-          </Button>
+          </SubmitButton>
         </form>
         <p className="text-sm text-muted-foreground">
           {alternate.prompt}{" "}
@@ -115,12 +116,12 @@ export function CodeScreen({
               maxLength={6}
               required
               placeholder="000000"
-              className="h-10 rounded-full px-4 font-mono tracking-[0.3em]"
+              className="h-10 px-4 font-mono tracking-[0.3em]"
             />
           </label>
-          <Button type="submit" size="lg" className="w-full">
+          <SubmitButton size="lg" className="w-full" loadingText="Verifying...">
             Continue
-          </Button>
+          </SubmitButton>
         </form>
         <ResendCode email={email} cooldown={cooldown} />
         <p className="text-sm text-muted-foreground">

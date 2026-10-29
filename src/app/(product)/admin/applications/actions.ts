@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { logActivity } from "@/lib/admin/activity";
 import { normalizeEmail } from "@/lib/auth/login-code";
 import { requireWritableAdminAction } from "@/lib/admin/guard";
@@ -21,6 +20,12 @@ import {
   type ReviewResult,
 } from "@/lib/beta/review";
 import type { Session } from "@/lib/session";
+import { redirectWithToast } from "@/lib/toast-server";
+
+function reasonText(reason: string): string {
+  const text = reason.replaceAll("-", " ");
+  return text.charAt(0).toUpperCase() + text.slice(1) + ".";
+}
 
 const reviewDeps = {
   marketing: {
@@ -88,7 +93,13 @@ async function logReview(
 export async function approveApplication(formData: FormData) {
   const session = await requireWritableAdminAction();
   const id = String(formData.get("id") ?? "");
-  if (!isMarketingApplicationId(id)) redirect("/admin/applications?error=invalid");
+  if (!isMarketingApplicationId(id)) {
+    return redirectWithToast(
+      "/admin/applications?error=invalid",
+      "error",
+      "That application is invalid.",
+    );
+  }
   const returnTo = applicationReturnPath(formData, id);
 
   const result = await approveBetaApplication(
@@ -100,22 +111,34 @@ export async function approveApplication(formData: FormData) {
   }
 
   if (!result.ok) {
-    redirect(withParam(returnTo, "error", result.reason));
+    return redirectWithToast(
+      withParam(returnTo, "error", result.reason),
+      "error",
+      reasonText(result.reason),
+    );
   }
 
   revalidateApplications(id);
   const approvedPath = withParam(returnTo, "approved", "1");
-  redirect(
+  return redirectWithToast(
     result.approvalEmail
       ? withParam(approvedPath, "invite", result.approvalEmail)
       : approvedPath,
+    "success",
+    "Application approved.",
   );
 }
 
 export async function rejectApplication(formData: FormData) {
   const session = await requireWritableAdminAction();
   const id = String(formData.get("id") ?? "");
-  if (!isMarketingApplicationId(id)) redirect("/admin/applications?error=invalid");
+  if (!isMarketingApplicationId(id)) {
+    return redirectWithToast(
+      "/admin/applications?error=invalid",
+      "error",
+      "That application is invalid.",
+    );
+  }
   const returnTo = applicationReturnPath(formData, id);
 
   const result = await rejectBetaApplication(
@@ -131,17 +154,31 @@ export async function rejectApplication(formData: FormData) {
   }
 
   if (!result.ok) {
-    redirect(withParam(returnTo, "error", result.reason));
+    return redirectWithToast(
+      withParam(returnTo, "error", result.reason),
+      "error",
+      reasonText(result.reason),
+    );
   }
 
   revalidateApplications(id);
-  redirect(withParam(returnTo, "rejected", "1"));
+  return redirectWithToast(
+    withParam(returnTo, "rejected", "1"),
+    "success",
+    "Application rejected.",
+  );
 }
 
 export async function revokeApplicationAccess(formData: FormData) {
   const session = await requireWritableAdminAction();
   const id = String(formData.get("id") ?? "");
-  if (!isMarketingApplicationId(id)) redirect("/admin/applications?error=invalid");
+  if (!isMarketingApplicationId(id)) {
+    return redirectWithToast(
+      "/admin/applications?error=invalid",
+      "error",
+      "That application is invalid.",
+    );
+  }
   const returnTo = applicationReturnPath(formData, id);
 
   const result = await revokeBetaApplicationAccess({ id }, reviewDeps);
@@ -150,26 +187,54 @@ export async function revokeApplicationAccess(formData: FormData) {
   }
 
   if (!result.ok) {
-    redirect(withParam(returnTo, "error", result.reason));
+    return redirectWithToast(
+      withParam(returnTo, "error", result.reason),
+      "error",
+      reasonText(result.reason),
+    );
   }
 
   revalidateApplications(id);
-  redirect(withParam(returnTo, "revoked", "1"));
+  return redirectWithToast(
+    withParam(returnTo, "revoked", "1"),
+    "success",
+    "Application access revoked.",
+  );
 }
 
 export async function resendApplicationInvite(formData: FormData) {
   const session = await requireWritableAdminAction();
   const id = String(formData.get("id") ?? "");
-  if (!isMarketingApplicationId(id)) redirect("/admin/applications?error=invalid");
+  if (!isMarketingApplicationId(id)) {
+    return redirectWithToast(
+      "/admin/applications?error=invalid",
+      "error",
+      "That application is invalid.",
+    );
+  }
   const returnTo = applicationReturnPath(formData, id);
   const loaded = await loadMarketingApplication(id);
   if (loaded.state !== "ok") {
-    redirect(withParam(returnTo, "error", loaded.state));
+    return redirectWithToast(
+      withParam(returnTo, "error", loaded.state),
+      "error",
+      reasonText(loaded.state),
+    );
   }
   const email = normalizeEmail(loaded.application.email);
-  if (!email) redirect(withParam(returnTo, "error", "email"));
+  if (!email) {
+    return redirectWithToast(
+      withParam(returnTo, "error", "email"),
+      "error",
+      "That application has no valid email.",
+    );
+  }
   if (loaded.application.status !== "approved") {
-    redirect(withParam(returnTo, "error", "status"));
+    return redirectWithToast(
+      withParam(returnTo, "error", "status"),
+      "error",
+      "Only approved applications can receive an invite.",
+    );
   }
 
   let delivery: "sent" | "skipped" | "failed";
@@ -188,5 +253,13 @@ export async function resendApplicationInvite(formData: FormData) {
   });
   revalidateApplications(id);
   const resentPath = withParam(returnTo, "resent", "1");
-  redirect(withParam(resentPath, "invite", delivery));
+  return redirectWithToast(
+    withParam(resentPath, "invite", delivery),
+    delivery === "failed" ? "error" : "success",
+    delivery === "failed"
+      ? "Could not send the invite. Try again."
+      : delivery === "sent"
+        ? "Invite sent."
+        : "Email delivery was skipped.",
+  );
 }

@@ -6,17 +6,24 @@ import { sessionSecret } from "@/lib/config";
 import { githubAuthorizeUrl, newOauthNonce } from "@/lib/github/app";
 import { OAUTH_STATE_COOKIE, signSession } from "@/lib/session";
 import { NextResponse } from "next/server";
-import { requestOrigin } from "@/lib/auth/http";
+import { redirectWithCookies, requestOrigin } from "@/lib/auth/http";
+import { authErrors } from "@/lib/auth/messages";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const origin = requestOrigin(request);
   if (!process.env.GITHUB_CLIENT_ID || !process.env.GITHUB_CLIENT_SECRET) {
-    return NextResponse.redirect(new URL("/login?error=github", origin));
+    return redirectWithCookies(origin, "/login?error=github", [], {
+      tone: "error",
+      message: authErrors.github,
+    });
   }
   const secret = sessionSecret();
   if (!secret) {
-    return NextResponse.redirect(new URL("/login?error=session", origin));
+    return redirectWithCookies(origin, "/login?error=session", [], {
+      tone: "error",
+      message: authErrors.session,
+    });
   }
   const nonce = newOauthNonce();
   const invite = url.searchParams.get("invite");

@@ -34,7 +34,10 @@ export function createPrismaWebhookRepository(): WebhookRepository | null {
     async findRepoByGithubId(githubRepoId) {
       const repo = await prisma.repo.findUnique({
         where: { githubRepoId },
-        include: { installation: true },
+        include: {
+          installation: true,
+          site: { select: { status: true } },
+        },
       });
       if (!repo) return null;
       return {
@@ -44,6 +47,8 @@ export function createPrismaWebhookRepository(): WebhookRepository | null {
         owner: repo.owner,
         name: repo.name,
         installationGithubId: repo.installation.githubInstallationId,
+        defaultBranch: repo.defaultBranch,
+        siteStatus: repo.site?.status ?? null,
       };
     },
     async enqueueJob(job: NewJob) {

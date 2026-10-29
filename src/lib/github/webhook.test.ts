@@ -133,6 +133,71 @@ describe("github webhook idempotency", () => {
     expect(repo.jobs).toHaveLength(1);
   });
 
+  it("ignores pushes to non-default branches and tags", async () => {
+    const repo = repoWithSite();
+    const branch = JSON.stringify({
+      ref: "refs/heads/dev",
+      before: "a".repeat(40),
+      after: "b".repeat(40),
+      repository: { id: 42 },
+    });
+    const tag = JSON.stringify({
+      ref: "refs/tags/v1.0.0",
+      before: "a".repeat(40),
+      after: "b".repeat(40),
+      repository: { id: 42 },
+    });
+    const tagRequest = signed(tag);
+    tagRequest.headers.deliveryId = "delivery-tag";
+    const first = await handleGithubWebhook({ ...signed(branch), secret: SECRET, repo });
+    const second = await handleGithubWebhook({ ...tagRequest, secret: SECRET, repo });
+    expect(first.body).toMatchObject({ ok: true, ignored: true });
+    expect(second.body).toMatchObject({ ok: true, ignored: true });
+    expect(repo.jobs).toHaveLength(0);
+  });
+
+  it("allows a configured default branch", async () => {
+    const repo = repoWithSite();
+    repo.repos.set("42", {
+      ...repo.repos.get("42")!,
+      defaultBranch: "develop",
+    });
+    const body = JSON.stringify({
+      ref: "refs/heads/develop",
+      before: "a".repeat(40),
+      after: "b".repeat(40),
+      repository: { id: 42 },
+    });
+    const result = await handleGithubWebhook({ ...signed(body), secret: SECRET, repo });
+    expect(result.body).toMatchObject({ ok: true, jobId: "job_1" });
+  });
+
+  it("ignores pushes when the site is paused or missing", async () => {
+    const paused = repoWithSite();
+    paused.sites[0]!.status = "PAUSED";
+    const noSite = new MemoryWebhookRepository();
+    noSite.repos.set("42", {
+      id: "repo_1",
+      githubRepoId: "42",
+      fullName: "acme/docs",
+      owner: "acme",
+      name: "docs",
+      installationGithubId: "7",
+    });
+    const body = JSON.stringify({
+      ref: "refs/heads/main",
+      before: "a".repeat(40),
+      after: "b".repeat(40),
+      repository: { id: 42 },
+    });
+    const first = await handleGithubWebhook({ ...signed(body), secret: SECRET, repo: paused });
+    const second = await handleGithubWebhook({ ...signed(body), secret: SECRET, repo: noSite });
+    expect(first.body).toMatchObject({ ok: true, ignored: true });
+    expect(second.body).toMatchObject({ ok: true, ignored: true });
+    expect(paused.jobs).toHaveLength(0);
+    expect(noSite.jobs).toHaveLength(0);
+  });
+
   it("pauses the site when the GitHub App is uninstalled", async () => {
     const repo = repoWithSite();
     const body = JSON.stringify({

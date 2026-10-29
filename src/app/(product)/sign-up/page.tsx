@@ -20,7 +20,7 @@ export default async function SignUpPage({
   return (
     <AuthScreen
       title="Create your account"
-      subtitle="Opentip is in a closed beta. Use GitHub or a 6-digit code sent to an approved email."
+      subtitle="Opentip is in a closed beta."
       githubHref={`/api/auth/github${suffix}`}
       returnTo="sign-up"
       nextPath={next}

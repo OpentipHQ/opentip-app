@@ -3,7 +3,8 @@ export type ImportField =
   | "subdomain"
   | "description"
   | "theme"
-  | "primaryColor";
+  | "primaryColor"
+  | "reviewMode";
 
 export type ImportFormState = {
   error: { field: ImportField | "form"; message: string } | null;

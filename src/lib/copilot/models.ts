@@ -4,6 +4,11 @@ export const DEFAULT_SMALL_MODEL = "openai/gpt-oss-120b";
 
 export type TaskSize = "heavy" | "small";
 export type ProviderId = "xai" | "groq" | "fake";
+export type CopilotJobKind =
+  | "FIRST_BUILD"
+  | "PUSH_UPDATE"
+  | "CHAT_EDIT"
+  | "SUMMARY_REFRESH";
 
 export type ModelChoice = {
   provider: "xai" | "groq";
@@ -30,7 +35,7 @@ export function selectModel(
 }
 
 export function taskSizeForJob(
-  kind: "FIRST_BUILD" | "PUSH_UPDATE" | "CHAT_EDIT",
+  kind: CopilotJobKind,
   instruction?: string,
 ): TaskSize {
   if (kind === "FIRST_BUILD") return "heavy";
