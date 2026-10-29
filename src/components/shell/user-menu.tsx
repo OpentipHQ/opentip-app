@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useFormStatus } from "react-dom";
 import {
   ChartNoAxesColumn,
-  CreditCard,
   Monitor,
   Moon,
   Shield,
@@ -115,10 +114,6 @@ export function UserMenu({ user }: { user: MenuUser }) {
         <DropdownMenuItem render={<Link href="/profile" />}>
           <UserRound />
           Profile
-        </DropdownMenuItem>
-        <DropdownMenuItem render={<Link href="/dashboard/billing" />}>
-          <CreditCard />
-          Billing
         </DropdownMenuItem>
         <DropdownMenuItem render={<Link href="/dashboard/usage" />}>
           <ChartNoAxesColumn />

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { logActivity } from "@/lib/admin/activity";
 import { requireWritableAdminAction } from "@/lib/admin/guard";
+import { adjustCredits } from "@/lib/credits/apply";
 import { getPrisma } from "@/lib/db";
 import { redirectWithToast } from "@/lib/toast-server";
 
@@ -49,47 +50,33 @@ export async function changeUserPlan(formData: FormData) {
 export async function addCredits(formData: FormData) {
   const session = await requireWritableAdminAction();
   const userId = String(formData.get("userId") ?? "");
-  const raw = Number(formData.get("amount") ?? 0);
-  const amount = Number.isFinite(raw) ? Math.round(raw * 10000) / 10000 : 0;
-  const prisma = getPrisma();
-  if (!prisma) {
-    return redirectWithToast(
-      "/admin/plans?error=1",
-      "error",
-      "The database is not connected.",
-    );
-  }
-  if (!userId || amount === 0 || Math.abs(amount) > 100000) {
-    return redirectWithToast(
-      "/admin/plans?error=1",
-      "error",
-      "Choose a user and enter a non-zero amount.",
-    );
-  }
-  const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user) {
-    return redirectWithToast(
-      "/admin/plans?error=1",
-      "error",
-      "That user no longer exists.",
-    );
-  }
-  const updated = await prisma.user.update({
-    where: { id: userId },
-    data: { creditUsd: { increment: amount } },
-    select: { creditUsd: true },
+  const mode = String(formData.get("mode") ?? "grant") === "remove" ? "remove" : "grant";
+  const credits = Number(formData.get("amount") ?? 0);
+  const reason = String(formData.get("reason") ?? "");
+  const result = await adjustCredits({
+    userId,
+    actorId: session.userId,
+    mode,
+    credits,
+    reason,
   });
-  if (Number(updated.creditUsd) < 0) {
-    await prisma.user.update({ where: { id: userId }, data: { creditUsd: 0 } });
+  if (!result.ok) {
+    return redirectWithToast("/admin/plans?error=1", "error", result.error);
   }
+  const prisma = getPrisma();
+  const user = prisma
+    ? await prisma.user.findUnique({ where: { id: userId }, select: { login: true } })
+    : null;
   await logActivity({
     actorId: session.userId,
     actorEmail: session.login,
-    action: "admin.credits-add",
+    action: mode === "grant" ? "admin.credits-grant" : "admin.credits-remove",
     targetType: "user",
     targetId: userId,
-    metadata: { login: user.login, amount },
+    metadata: { login: user?.login ?? userId, credits, reason: reason.trim(), balance: result.balance },
   });
   revalidatePath("/admin/plans");
+  revalidatePath("/admin/credits");
+  revalidatePath(`/admin/users/${userId}`);
   return redirectWithToast("/admin/plans?saved=credits", "success", "Credits updated.");
 }

@@ -6,6 +6,7 @@ import { getViewSession } from "@/lib/admin/act-as";
 import { logActivity } from "@/lib/admin/activity";
 import { blockActAsWrites } from "@/lib/admin/guard";
 import { DEFAULT_SMALL_MODEL, selectModel, taskSizeForJob } from "@/lib/copilot/models";
+import { assertCredits } from "@/lib/credits/apply";
 import { getPrisma } from "@/lib/db";
 import { flashToast, redirectWithToast } from "@/lib/toast-server";
 import {
@@ -97,6 +98,10 @@ export async function retryBuildAction(formData: FormData) {
   }
   if (job.repo.site?.status === "PAUSED") {
     return redirectWithToast(`${buildPath}?retryError=paused`, "error", "This site is paused.");
+  }
+  const credits = await assertCredits(session.userId);
+  if (!credits.ok) {
+    return redirectWithToast(`${buildPath}?retryError=credits`, "error", credits.error);
   }
   if (job.status !== "FAILED") {
     return redirectWithToast(
@@ -203,6 +208,14 @@ export async function refreshSummaryAction(formData: FormData) {
       "This site is paused.",
     );
   }
+  const credits = await assertCredits(session.userId);
+  if (!credits.ok) {
+    return redirectWithToast(
+      `/dashboard/sites/${siteId}?error=${encodeURIComponent(credits.error)}`,
+      "error",
+      credits.error,
+    );
+  }
   const activeSummary = await prisma.job.findFirst({
     where: {
       repoId: site.repoId,
@@ -285,16 +298,28 @@ export async function sendChatEditAction(formData: FormData) {
       "This site is paused.",
     );
   }
-  const page = await prisma.page.findFirst({
-    where: { id: pageId, siteId },
-    select: { id: true },
-  });
-  if (!page) {
+  const credits = await assertCredits(session.userId);
+  if (!credits.ok) {
     return redirectWithToast(
-      `${backTo}&error=${encodeURIComponent("That page no longer exists.")}`,
+      `${backTo}&error=${encodeURIComponent(credits.error)}`,
       "error",
-      "That page no longer exists.",
+      credits.error,
     );
+  }
+  let focusPageId: string | null = null;
+  if (pageId) {
+    const page = await prisma.page.findFirst({
+      where: { id: pageId, siteId },
+      select: { id: true },
+    });
+    if (!page) {
+      return redirectWithToast(
+        `${backTo}&error=${encodeURIComponent("That page no longer exists.")}`,
+        "error",
+        "That page no longer exists.",
+      );
+    }
+    focusPageId = page.id;
   }
 
   const task = taskSizeForJob("CHAT_EDIT", instruction);
@@ -306,7 +331,7 @@ export async function sendChatEditAction(formData: FormData) {
     const chat = await tx.chatEdit.create({
       data: {
         siteId,
-        pageId,
+        pageId: focusPageId,
         userId: session.userId,
         instruction,
       },
@@ -331,6 +356,12 @@ export async function sendChatEditAction(formData: FormData) {
   });
   revalidatePath(`/dashboard/sites/${siteId}`);
   revalidatePath(`/dashboard/sites/${siteId}/chat`);
+  revalidatePath("/dashboard");
+  const requested = String(formData.get("returnTo") ?? "");
+  const returnTo =
+    requested.startsWith("/dashboard/") && !requested.startsWith("//")
+      ? requested
+      : `/dashboard/sites/${siteId}/builds/${job.id}?queued=1`;
   await flashToast("success", "Chat edit queued.");
-  redirect(`/dashboard/sites/${siteId}/builds/${job.id}?queued=1`);
+  redirect(returnTo);
 }

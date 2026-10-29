@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getPrisma } from "@/lib/db";
+import { addCredits } from "@/app/(product)/admin/plans/actions";
 import { startActAs, suspendUser, unsuspendUser } from "../actions";
 
 export const dynamic = "force-dynamic";
@@ -107,9 +108,21 @@ export default async function AdminUserPage({
           <CardHeader>
             <CardTitle>Credits</CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-sm">${Number(user.creditUsd).toFixed(2)}</p>
-            <p className="mt-2 text-xs text-muted-foreground">Credits can be added on the Plans page.</p>
+          <CardContent className="flex flex-col gap-3">
+            <p className="text-sm">{user.creditBalance} credits</p>
+            <form action={addCredits} className="flex flex-col gap-2">
+              <input type="hidden" name="userId" value={user.id} />
+              <input name="amount" type="number" min="1" required placeholder="Credits" className="h-9 rounded-control border border-border bg-background px-3 text-sm" />
+              <input name="reason" required placeholder="Reason" className="h-9 rounded-control border border-border bg-background px-3 text-sm" />
+              <div className="flex gap-2">
+                <SubmitButton name="mode" value="grant" size="sm">
+                  Grant
+                </SubmitButton>
+                <SubmitButton name="mode" value="remove" size="sm" variant="outline">
+                  Remove
+                </SubmitButton>
+              </div>
+            </form>
           </CardContent>
         </Card>
       </div>

@@ -7,6 +7,7 @@ import {
   utcDayKey,
   type CapDecision,
 } from "@/lib/copilot/caps";
+import { recordUsageSpend } from "@/lib/credits/apply";
 import { getPrisma } from "@/lib/db";
 
 export async function reserveDailySpend(input: {
@@ -105,6 +106,7 @@ export async function finalizeUsage(input: {
       estimatedCostUsd: Math.max(0, input.estimatedCostUsd),
     },
   });
+  await recordUsageSpend(input.usageId);
 }
 
 export async function releaseUsage(usageId: string | undefined): Promise<void> {

@@ -97,31 +97,42 @@ export default async function PlansPage({
 
         <Card>
           <CardHeader>
-            <CardTitle>Add credits</CardTitle>
+            <CardTitle>Credits</CardTitle>
           </CardHeader>
           <CardContent>
             <form action={addCredits} className="flex flex-col gap-3">
               <select name="userId" required className="h-9 rounded-control border border-border bg-background px-3 text-sm">
-                <option value="">Choose a user</option>
+                <option value="">User</option>
                 {users.map((user) => (
                   <option key={user.id} value={user.id}>
-                    {user.login} (${Number(user.creditUsd).toFixed(2)})
+                    {user.login} ({user.creditBalance})
                   </option>
                 ))}
               </select>
               <input
                 name="amount"
                 type="number"
-                step="0.01"
-                min="-100000"
-                max="100000"
+                step="1"
+                min="1"
+                max="1000000"
                 required
-                placeholder="USD, for example 25"
+                placeholder="Credits"
                 className="h-9 rounded-control border border-border bg-background px-4 text-sm"
               />
-              <SubmitButton className="w-fit" loadingText="Adding...">
-                Add credits
-              </SubmitButton>
+              <input
+                name="reason"
+                required
+                placeholder="Reason"
+                className="h-9 rounded-control border border-border bg-background px-4 text-sm"
+              />
+              <div className="flex gap-2">
+                <SubmitButton name="mode" value="grant" className="w-fit" loadingText="Granting...">
+                  Grant
+                </SubmitButton>
+                <SubmitButton name="mode" value="remove" variant="outline" className="w-fit" loadingText="Removing...">
+                  Remove
+                </SubmitButton>
+              </div>
             </form>
           </CardContent>
         </Card>
