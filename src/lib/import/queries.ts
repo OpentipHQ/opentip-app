@@ -1,4 +1,5 @@
 import { getPrisma } from "@/lib/db";
+import { installationVisibleWhere } from "@/lib/github/installation-access";
 import { subdomainCandidates } from "@/lib/github/subdomain";
 
 export const IMPORT_PAGE_SIZE = 10;
@@ -58,7 +59,7 @@ export async function loadImportView(args: {
   }
 
   const installations = await prisma.installation.findMany({
-    where: { userId: args.userId, uninstalledAt: null, suspendedAt: null },
+    where: installationVisibleWhere(args.userId),
     include: { _count: { select: { repos: { where: { removed: false } } } } },
     orderBy: [{ accountType: "asc" }, { accountLogin: "asc" }],
   });

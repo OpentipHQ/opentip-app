@@ -47,11 +47,6 @@ export default async function ImportPage({
       <PageHeader
         title="Import a repo"
         description="Choose a GitHub account and pick a repo. Name the site, then start the first build."
-        action={
-          <Button nativeButton={false} variant="outline" render={<a href={installUrl} />}>
-            Add GitHub Scope
-          </Button>
-        }
       />
 
       {!view.connected ? (

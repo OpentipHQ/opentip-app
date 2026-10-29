@@ -16,7 +16,7 @@ describe("repository content selection", () => {
     expect(isRelevantPath(".env.example")).toBe(true);
   });
 
-  it("prioritizes README, docs, manifests, and source files", () => {
+  it("prioritizes manifests and source over README and docs", () => {
     const selected = selectContentCandidates([
       "src/z.ts",
       "package.json",
@@ -26,11 +26,11 @@ describe("repository content selection", () => {
       "image.png",
     ]);
     expect(selected).toEqual([
-      "README.md",
-      "docs/setup.md",
       "package.json",
       "src/a.ts",
       "src/z.ts",
+      "README.md",
+      "docs/setup.md",
     ]);
   });
 });

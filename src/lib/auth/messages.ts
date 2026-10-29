@@ -16,6 +16,7 @@ export const authErrors: Record<string, string> = {
   rate: "Too many codes were sent. Try again later.",
   unconfigured: "Sign-in email is not configured yet.",
   invalid: "Enter a valid email address.",
+  disabled: "Email sign-in is disabled.",
 };
 
 export const installNotice = "Sign in to finish linking the GitHub App.";

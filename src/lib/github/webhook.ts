@@ -107,7 +107,7 @@ async function applyEvent(args: {
   deliveryId: string;
   payload: Payload;
   repo: WebhookRepository;
-}): Promise<{ jobId?: string | null; paused?: number; ignored?: boolean }> {
+}): Promise<{ jobId?: string | null; paused?: number; resumed?: number; ignored?: boolean }> {
   if (args.event === "ping") return { ignored: true };
 
   if (args.event === "installation" && args.payload.installation) {
@@ -133,6 +133,10 @@ async function applyEvent(args: {
         accountLogin: args.payload.installation.account?.login ?? "unknown",
         accountType: args.payload.installation.account?.type ?? "User",
       });
+      const reasons =
+        args.action === "unsuspend" ? ["github_app_suspended"] : ["github_app_uninstalled"];
+      const resumed = await args.repo.resumeInstallation(installationId, reasons);
+      return resumed > 0 ? { resumed } : { ignored: true };
     }
     return { ignored: true };
   }
@@ -151,7 +155,11 @@ async function applyEvent(args: {
         .map((repo) => repoSeedFromApi(repo))
         .filter((repo) => repo !== null);
       await args.repo.addRepos(installationId, repos);
-      return { ignored: true };
+      const resumed = await args.repo.resumeRepos(
+        repos.map((repo) => repo.githubRepoId),
+        ["repo_removed", "repo_deleted"],
+      );
+      return { resumed, ignored: resumed === 0 };
     }
   }
 

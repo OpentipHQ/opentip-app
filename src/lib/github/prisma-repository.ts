@@ -1,5 +1,6 @@
 import { Prisma } from "@/generated/prisma/client";
 import { getPrisma, isUniqueConstraint } from "@/lib/db";
+import { applyResume } from "@/lib/github/resume";
 import type { NewJob, WebhookRepository } from "@/lib/github/types";
 
 export function createPrismaWebhookRepository(): WebhookRepository | null {
@@ -117,6 +118,67 @@ export function createPrismaWebhookRepository(): WebhookRepository | null {
       });
       return paused.count;
     },
+    async resumeInstallation(githubInstallationId, reasons) {
+      await prisma.installation.updateMany({
+        where: { githubInstallationId },
+        data: { uninstalledAt: null, suspendedAt: null },
+      });
+      const sites = await prisma.site.findMany({
+        where: {
+          status: "PAUSED",
+          pausedReason: { in: reasons },
+          repo: { installation: { githubInstallationId } },
+        },
+        select: {
+          id: true,
+          pausedReason: true,
+          _count: { select: { pages: { where: { published: true } } } },
+        },
+      });
+      return applyResume(
+        sites.map((site) => ({
+          id: site.id,
+          pausedReason: site.pausedReason,
+          publishedPageCount: site._count.pages,
+        })),
+        reasons,
+        async (id, status) => {
+          await prisma.site.update({
+            where: { id },
+            data: { status, pausedReason: null },
+          });
+        },
+      );
+    },
+    async resumeRepos(githubRepoIds, reasons) {
+      if (githubRepoIds.length === 0) return 0;
+      const sites = await prisma.site.findMany({
+        where: {
+          status: "PAUSED",
+          pausedReason: { in: reasons },
+          repo: { githubRepoId: { in: githubRepoIds } },
+        },
+        select: {
+          id: true,
+          pausedReason: true,
+          _count: { select: { pages: { where: { published: true } } } },
+        },
+      });
+      return applyResume(
+        sites.map((site) => ({
+          id: site.id,
+          pausedReason: site.pausedReason,
+          publishedPageCount: site._count.pages,
+        })),
+        reasons,
+        async (id, status) => {
+          await prisma.site.update({
+            where: { id },
+            data: { status, pausedReason: null },
+          });
+        },
+      );
+    },
     async addRepos(githubInstallationId, repos) {
       const installation = await prisma.installation.findUnique({
         where: { githubInstallationId },
@@ -200,6 +262,13 @@ export function createPrismaWebhookRepository(): WebhookRepository | null {
       }
       if (input.action === "transferred") {
         return this.pauseRepos([input.githubRepoId], "repo_transferred");
+      }
+      if (input.action === "unarchived") {
+        await prisma.repo.update({
+          where: { id: repo.id },
+          data: { archived: false },
+        });
+        return this.resumeRepos([input.githubRepoId], ["repo_archived"]);
       }
       return 0;
     },

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   checkSpendCaps,
+  spendDecision,
   SpendLedger,
   utcDayKey,
 } from "@/lib/copilot/caps";
@@ -126,6 +127,35 @@ describe("spend caps", () => {
     expect(prepared).toMatchObject({ ok: true, estimateUsd: estimate });
     expect(ledger.spent("repo-a", "2026-10-23").repo).toBe(estimate);
     expect(estimate).toBeGreaterThan(0);
+  });
+});
+
+describe("first build allowance", () => {
+  it("lets a first build use its own cap after the repo cap is full", () => {
+    expect(
+      spendDecision({
+        jobKind: "FIRST_BUILD",
+        repoSpentUsd: 2,
+        firstBuildSpentUsd: 0,
+        globalSpentUsd: 2,
+        repoCapUsd: 2,
+        firstBuildCapUsd: 2,
+        globalCapUsd: 25,
+        nextJobEstimateUsd: 1.2,
+      }),
+    ).toEqual({ allowed: true });
+    expect(
+      spendDecision({
+        jobKind: "OTHER",
+        repoSpentUsd: 2,
+        firstBuildSpentUsd: 1.2,
+        globalSpentUsd: 3.2,
+        repoCapUsd: 2,
+        firstBuildCapUsd: 2,
+        globalCapUsd: 25,
+        nextJobEstimateUsd: 0.1,
+      }),
+    ).toEqual({ allowed: false, reason: "repo_daily_cap" });
   });
 });
 

@@ -22,6 +22,8 @@ export function sampleSite(): DocsSite {
     logoHref: null,
     ogBackgroundUrl: null,
     ogImageUrl: null,
+    repoFullName: null,
+    repoBranch: null,
     source: "preview",
     pages: [
       {
@@ -36,8 +38,12 @@ export function sampleSite(): DocsSite {
         ogImageUrl: null,
         content: [
           "This site is preview data. It is what a customer docs site looks like before a Neon database is connected.",
-          "Opentip writes the docs for a GitHub repo and updates them on every push. The Opentip Copilot GitHub App signs people in and receives those pushes.",
-          "Connect a repository, pick a subdomain, and set a logo, favicon, and primary color. Free sites can use the Ledger or Minimal theme.",
+          "## Install",
+          "```bash\nnpm install\nnpm run dev\n```",
+          "> [!NOTE]\n> Connect a repository before the first build.",
+          "## Branding",
+          "Set a logo, favicon, and primary color. Free sites can use the Ledger or Minimal theme.",
+          "<!-- sources: package.json -->",
         ].join("\n\n"),
       },
       {

@@ -4,26 +4,20 @@ import {
   DEFAULT_REPO_DAILY_CAP_USD,
   readCap,
 } from "@/lib/copilot/caps";
+import { draftFromGeneration, type PageDraft } from "@/lib/copilot/contract";
 import {
-  GenerationContractError,
-  draftFromGeneration,
-  parseGenerationResult,
-  type PageDraft,
-} from "@/lib/copilot/contract";
-import { estimateCostUsd, ratesFromEnv, reserveTokens } from "@/lib/copilot/cost";
+  DEFAULT_FIRST_BUILD_CAP_USD,
+} from "@/lib/copilot/caps";
+import { estimateCostUsd, ratesFromEnv, reserveTokens, reserveTokensForKind } from "@/lib/copilot/cost";
+import { extractFacts } from "@/lib/copilot/facts";
 import { generateRepoSummary } from "@/lib/copilot/generate";
-import {
-  chatEditRequest,
-  firstBuildRequest,
-  pushUpdateRequest,
-} from "@/lib/copilot/prompts";
+import { runChatPipeline, runFirstBuildPipeline, runPushPipeline } from "@/lib/copilot/pipeline";
 import { taskSizeForJob } from "@/lib/copilot/models";
 import {
   releaseUsage,
   reserveDailySpend,
   finalizeUsage,
 } from "@/lib/copilot/reserve";
-import type { CompletionResult } from "@/lib/copilot/providers";
 import { resolveProvider } from "@/lib/copilot/providers";
 import { getPrisma } from "@/lib/db";
 import { createInstallationToken } from "@/lib/github/installation-token";
@@ -101,11 +95,15 @@ export async function runJob(
         model: provider.model,
       },
     });
+    const multiStage =
+      loaded.kind === "FIRST_BUILD" ||
+      loaded.kind === "PUSH_UPDATE" ||
+      loaded.kind === "CHAT_EDIT";
     const rates =
       provider.id === "fake"
         ? { inputUsdPerMillion: 0, outputUsdPerMillion: 0 }
-        : ratesFromEnv(provider.id, process.env);
-    const reserve = reserveTokens(task);
+        : ratesFromEnv(multiStage ? "xai" : provider.id, process.env);
+    const reserve = multiStage ? reserveTokensForKind(loaded.kind) : reserveTokens(task);
     const estimateUsd = estimateCostUsd(reserve, rates);
     const reservation = await reserveDailySpend({
       repoId: repo.id,
@@ -115,9 +113,11 @@ export async function runJob(
         process.env.GLOBAL_DAILY_CAP_USD,
         DEFAULT_GLOBAL_DAILY_CAP_USD,
       ),
+      firstBuildCapUsd: readCap(process.env.FIRST_BUILD_CAP_USD, DEFAULT_FIRST_BUILD_CAP_USD),
       provider: provider.id.toUpperCase() as "XAI" | "GROQ" | "FAKE",
       model: provider.model,
       jobId,
+      jobKind: loaded.kind,
     });
     if (!reservation.allowed) {
       throw new PermanentJobError(
@@ -220,7 +220,7 @@ async function runFirstBuild(args: {
     phase: JobPhase.READING_REPO,
     progress: 10,
     message: "Reading repository",
-    detail: "Reading the README, docs, and source files",
+    detail: "Reading routes, schema, scripts, and source files",
   });
   const snapshot = await repoCall(() =>
     readRepoSnapshot({
@@ -230,33 +230,30 @@ async function runFirstBuild(args: {
       token: args.token,
     }),
   );
+  const facts = extractFacts(snapshot);
   await progress(args.job.id, args.config, {
     phase: JobPhase.GENERATING,
     progress: 35,
     message: "Writing pages",
-    detail: `Writing docs from ${snapshot.files.length} files`,
+    detail: `${facts.routes.length} routes, ${facts.envVars.length} env vars`,
   });
   await assertOwnership(args.job.id, args.config.workerId);
-  const generated = await args.provider
-    .complete(
-      firstBuildRequest({
-        siteName: args.siteName,
-        siteDescription: args.siteDescription,
-        repoSummary: args.repoSummary,
-        snapshot,
-      }),
-    );
-  await finalize(args.usageId, generated);
-  const pages = parseGenerated(generated.text, {
-    allowEmpty: false,
-    requireHome: true,
-    maxPages: 10,
+  const generated = await runFirstBuildPipeline({
+    heavy: resolveProvider("heavy", process.env),
+    small: resolveProvider("small", process.env),
+    siteName: args.siteName,
+    repoFullName: `${args.owner}/${args.name}`,
+    snapshot,
+    facts,
   });
-  const drafts = pages.pages.map(draftFromGeneration);
+  await finalize(args.usageId, generated.usage);
+  if (!generated.pages.some((page) => page.slug === "")) {
+    throw new PermanentJobError("The model did not return a home page.");
+  }
   await publish(args, {
-    pages: drafts,
-    removedSlugs: pages.removedSlugs,
-    changeNote: pages.changeNote,
+    pages: generated.pages.map(draftFromGeneration),
+    removedSlugs: generated.removedSlugs,
+    changeNote: generated.changeNote ?? args.siteDescription,
     source: "FIRST_BUILD",
     baseSha: snapshot.sha,
   });
@@ -335,30 +332,40 @@ async function runPushUpdate(args: {
       description: true,
       content: true,
       navOrder: true,
+      handEdited: true,
     },
     orderBy: { navOrder: "asc" },
   });
+  const snapshot = await repoCall(() =>
+    readRepoSnapshot({
+      owner: args.owner,
+      name: args.name,
+      branch: args.branch,
+      token: args.token,
+      ref: after,
+    }),
+  );
+  const facts = extractFacts(snapshot);
   await progress(args.job.id, args.config, {
     phase: JobPhase.GENERATING,
     progress: 35,
     message: "Updating pages",
     detail: `Reviewing ${change.changedPaths.length} changed files`,
   });
-  const generated = await args.provider
-    .complete(
-      pushUpdateRequest({
-        siteName: args.siteName,
-        repoSummary: args.repoSummary,
-        change,
-        existingPages: existing,
-      }),
-    );
-  await finalize(args.usageId, generated);
-  const result = parseGenerated(generated.text, {
-    allowEmpty: true,
-    maxPages: 8,
+  const generated = await runPushPipeline({
+    heavy: resolveProvider("heavy", process.env),
+    small: resolveProvider("small", process.env),
+    siteName: args.siteName,
+    repoFullName: `${args.owner}/${args.name}`,
+    facts,
+    files: snapshot.files,
+    treePaths: snapshot.treePaths,
+    changedPaths: change.changedPaths,
+    removedPaths: change.removedPaths,
+    existingPages: existing.filter((page) => !page.handEdited),
   });
-  if (result.pages.length === 0 && result.removedSlugs.length === 0) {
+  await finalize(args.usageId, generated.usage);
+  if (generated.pages.length === 0 && generated.removedSlugs.length === 0) {
     const usage = await jobUsageTotals(args.job.id);
     await logJobEvent({
       jobId: args.job.id,
@@ -378,9 +385,9 @@ async function runPushUpdate(args: {
     return;
   }
   await publish(args, {
-    pages: result.pages.map(draftFromGeneration),
-    removedSlugs: result.removedSlugs,
-    changeNote: result.changeNote,
+    pages: generated.pages.map(draftFromGeneration),
+    removedSlugs: generated.removedSlugs,
+    changeNote: generated.changeNote ?? args.repoSummary,
     source: "PUSH_UPDATE",
     baseSha: after,
   });
@@ -399,55 +406,77 @@ async function runChatEdit(args: {
   if (!args.instruction.trim()) {
     throw new PermanentJobError("The chat instruction was empty.");
   }
-  if (!args.pageId) {
-    throw new PermanentJobError("Choose a page before sending a chat edit.");
-  }
   const prisma = getPrisma();
   if (!prisma) throw new Error("DATABASE_URL is required to run the worker.");
-  const page = await prisma.page.findFirst({
-    where: { id: args.pageId, siteId: args.siteId },
+  const pages = await prisma.page.findMany({
+    where: { siteId: args.siteId },
     select: {
+      id: true,
       slug: true,
       section: true,
       title: true,
       description: true,
       content: true,
       navOrder: true,
-      handEdited: true,
     },
+    orderBy: { navOrder: "asc" },
   });
-  if (!page) throw new PermanentJobError("That page no longer exists.");
+  const focus = args.pageId ? pages.find((page) => page.id === args.pageId) : null;
+  if (args.pageId && !focus) throw new PermanentJobError("That page no longer exists.");
+  if (pages.length === 0) throw new PermanentJobError("This site has no pages to edit.");
+  const repo = await prisma.repo.findUnique({
+    where: { id: args.job.repoId },
+    include: { installation: true },
+  });
+  let facts = null;
+  let files: Awaited<ReturnType<typeof readRepoSnapshot>>["files"] = [];
+  let treePaths: string[] = [];
+  if (repo && !repo.installation.uninstalledAt && !repo.installation.suspendedAt) {
+    try {
+      const token = await installationToken(repo.installation.githubInstallationId);
+      const snapshot = await readRepoSnapshot({
+        owner: repo.owner,
+        name: repo.name,
+        branch: repo.defaultBranch,
+        token,
+      });
+      facts = extractFacts(snapshot);
+      files = snapshot.files;
+      treePaths = snapshot.treePaths;
+    } catch (error) {
+      const message = safeErrorMessage(error);
+      if (!/\b(401|403|404)\b/.test(message)) throw new TransientJobError(message);
+    }
+  }
   await progress(args.job.id, args.config, {
     phase: JobPhase.GENERATING,
     progress: 35,
-    message: "Editing the page",
+    message: "Editing pages",
     detail: "Applying your instruction",
   });
-  const pageDraft: PageDraft = {
-    slug: page.slug,
-    section: page.section,
-    title: page.title,
-    description: page.description,
-    navOrder: page.navOrder,
-    content: page.content,
-  };
-  const generated = await args.provider
-    .complete(
-      chatEditRequest({
-        siteName: args.siteName,
-        page: pageDraft,
-        instruction: args.instruction,
-      }),
-    );
-  await finalize(args.usageId, generated);
-  const result = parseGenerated(generated.text, {
-    allowEmpty: false,
-    maxPages: 1,
+  const generated = await runChatPipeline({
+    heavy: resolveProvider("heavy", process.env),
+    small: resolveProvider("small", process.env),
+    siteName: args.siteName,
+    repoFullName: repo ? repo.fullName : null,
+    facts,
+    files,
+    treePaths,
+    focusSlug: focus?.slug ?? null,
+    instruction: args.instruction,
+    pages: pages.map((page) => ({
+      slug: page.slug,
+      section: page.section,
+      title: page.title,
+      description: page.description,
+      navOrder: page.navOrder,
+      content: page.content,
+    })),
   });
-  if (result.pages.length !== 1) {
-    throw new PermanentJobError("The edit did not return exactly one page.");
+  await finalize(args.usageId, generated.usage);
+  if (generated.pages.length === 0) {
+    throw new PermanentJobError("The edit did not return any pages.");
   }
-  const draft = draftFromGeneration(result.pages[0]);
   const usage = await jobUsageTotals(args.job.id);
   await progress(args.job.id, args.config, {
     phase: JobPhase.PUBLISHING,
@@ -467,9 +496,9 @@ async function runChatEdit(args: {
     source: "CHAT_EDIT",
     reviewMode: site.reviewMode,
     baseSha: null,
-    pages: [draft],
-    removedSlugs: [],
-    changeNote: result.changeNote,
+    pages: generated.pages.map(draftFromGeneration),
+    removedSlugs: generated.removedSlugs,
+    changeNote: generated.changeNote,
   });
   const message =
     applied.pending > 0
@@ -638,24 +667,6 @@ async function publish(
   });
 }
 
-function parseGenerated(
-  text: string,
-  options: {
-    allowEmpty: boolean;
-    requireHome?: boolean;
-    maxPages: number;
-  },
-) {
-  try {
-    return parseGenerationResult(text, options);
-  } catch (error) {
-    if (error instanceof GenerationContractError) {
-      throw new PermanentJobError(error.message);
-    }
-    throw error;
-  }
-}
-
 async function jobUsageTotals(jobId: string): Promise<{
   promptTokens: number;
   completionTokens: number;
@@ -685,7 +696,7 @@ async function jobUsageTotals(jobId: string): Promise<{
 
 async function finalize(
   usageId: string | undefined,
-  result: CompletionResult,
+  result: { promptTokens: number; completionTokens: number; estimatedCostUsd: number },
 ): Promise<void> {
   if (!usageId) return;
   await finalizeUsage({

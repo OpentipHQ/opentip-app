@@ -56,6 +56,19 @@ export function resolveHost(
   return { kind: "custom", host };
 }
 
+function isPlatformPath(pathname: string): boolean {
+  if (
+    pathname.startsWith("/_next") ||
+    pathname === "/favicon.ico" ||
+    pathname === "/icon.svg"
+  ) {
+    return true;
+  }
+  // Product routes live at /api and /api/*. A docs page such as
+  // /api-reference must still be rewritten onto the docs host.
+  return pathname === "/api" || pathname.startsWith("/api/");
+}
+
 function isSubdomain(value: string): boolean {
   return /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(value);
 }
@@ -71,12 +84,7 @@ export function decideProxy(input: {
   appHosts: string[];
   docsRootDomain: string;
 }): ProxyDecision {
-  if (
-    input.pathname.startsWith("/_next") ||
-    input.pathname.startsWith("/api") ||
-    input.pathname === "/favicon.ico" ||
-    input.pathname === "/icon.svg"
-  ) {
+  if (isPlatformPath(input.pathname)) {
     return { kind: "next" };
   }
 

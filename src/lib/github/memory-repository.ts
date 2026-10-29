@@ -1,3 +1,4 @@
+import { nextSiteStatus } from "@/lib/github/resume";
 import type { KnownRepo, NewJob, WebhookRepository } from "@/lib/github/types";
 
 type SiteRow = {
@@ -5,6 +6,7 @@ type SiteRow = {
   installationGithubId: string;
   status: "PENDING" | "ACTIVE" | "PAUSED";
   pausedReason: string | null;
+  publishedPages: number;
 };
 
 type DeliveryRow = {
@@ -97,6 +99,41 @@ export class MemoryWebhookRepository implements WebhookRepository {
     return paused;
   }
 
+  async resumeInstallation(githubInstallationId: string, reasons: string[]): Promise<number> {
+    const installation = this.installations.get(githubInstallationId);
+    if (installation) installation.uninstalled = false;
+    return this.resumeMatching(
+      (site) => site.installationGithubId === githubInstallationId,
+      reasons,
+    );
+  }
+
+  async resumeRepos(githubRepoIds: string[], reasons: string[]): Promise<number> {
+    const wanted = new Set(githubRepoIds);
+    return this.resumeMatching((site) => wanted.has(site.repoGithubId), reasons);
+  }
+
+  private async resumeMatching(
+    include: (site: SiteRow) => boolean,
+    reasons: string[],
+  ): Promise<number> {
+    let resumed = 0;
+    for (const site of this.sites) {
+      if (!include(site)) continue;
+      const next = nextSiteStatus({
+        status: site.status,
+        pausedReason: site.pausedReason,
+        publishedPageCount: site.publishedPages,
+        reasons,
+      });
+      if (!next) continue;
+      site.status = next;
+      site.pausedReason = null;
+      resumed += 1;
+    }
+    return resumed;
+  }
+
   async addRepos(
     githubInstallationId: string,
     repos: Array<{
@@ -160,6 +197,9 @@ export class MemoryWebhookRepository implements WebhookRepository {
     }
     if (input.action === "transferred") {
       return this.pauseRepos([input.githubRepoId], "repo_transferred");
+    }
+    if (input.action === "unarchived") {
+      return this.resumeRepos([input.githubRepoId], ["repo_archived"]);
     }
     return 0;
   }

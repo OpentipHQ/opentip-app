@@ -1,4 +1,5 @@
 import { getPrisma } from "@/lib/db";
+import { installationVisibleWhere } from "@/lib/github/installation-access";
 import { DEFAULT_HEAVY_MODEL } from "@/lib/copilot/models";
 import type { ImportStore } from "@/lib/import/repo-import";
 
@@ -10,11 +11,7 @@ export function createPrismaImportStore(): ImportStore | null {
       const repo = await prisma.repo.findFirst({
         where: {
           id: repoId,
-          installation: {
-            userId,
-            uninstalledAt: null,
-            suspendedAt: null,
-          },
+          installation: installationVisibleWhere(userId),
         },
         select: {
           id: true,

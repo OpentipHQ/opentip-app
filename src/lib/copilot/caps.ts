@@ -80,3 +80,23 @@ export function readCap(value: string | undefined, fallback: number): number {
 
 export const DEFAULT_REPO_DAILY_CAP_USD = 2;
 export const DEFAULT_GLOBAL_DAILY_CAP_USD = 25;
+export const DEFAULT_FIRST_BUILD_CAP_USD = 2;
+
+export function spendDecision(input: {
+  jobKind: "FIRST_BUILD" | "OTHER";
+  repoSpentUsd: number;
+  firstBuildSpentUsd: number;
+  globalSpentUsd: number;
+  repoCapUsd: number;
+  firstBuildCapUsd: number;
+  globalCapUsd: number;
+  nextJobEstimateUsd: number;
+}): CapDecision {
+  return checkSpendCaps({
+    repoSpentUsd: input.jobKind === "FIRST_BUILD" ? input.firstBuildSpentUsd : input.repoSpentUsd,
+    globalSpentUsd: input.globalSpentUsd,
+    repoCapUsd: input.jobKind === "FIRST_BUILD" ? input.firstBuildCapUsd : input.repoCapUsd,
+    globalCapUsd: input.globalCapUsd,
+    nextJobEstimateUsd: input.nextJobEstimateUsd,
+  });
+}

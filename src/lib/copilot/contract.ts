@@ -144,6 +144,10 @@ function parsePage(value: unknown): PageDraft {
   return { slug, section, title, description, navOrder, content };
 }
 
+export function parseModelJson(text: string): Record<string, unknown> {
+  return parseJsonObject(text);
+}
+
 function parseJsonObject(text: string): Record<string, unknown> {
   const trimmed = text.trim();
   const withoutFence = trimmed

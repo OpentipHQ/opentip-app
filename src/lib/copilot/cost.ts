@@ -66,3 +66,12 @@ export function reserveTokens(task: "heavy" | "small"): {
   if (task === "heavy") return { prompt: 20_000, completion: 8_000 };
   return { prompt: 4_000, completion: 1_500 };
 }
+
+export function reserveTokensForKind(
+  kind: "FIRST_BUILD" | "PUSH_UPDATE" | "CHAT_EDIT" | "SUMMARY_REFRESH",
+): { prompt: number; completion: number } {
+  if (kind === "FIRST_BUILD") return { prompt: 400_000, completion: 400_000 };
+  if (kind === "PUSH_UPDATE") return { prompt: 200_000, completion: 40_000 };
+  if (kind === "CHAT_EDIT") return { prompt: 120_000, completion: 30_000 };
+  return reserveTokens("small");
+}

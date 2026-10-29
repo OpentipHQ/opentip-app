@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { SubmitButton } from "@/components/ui/submit-button";
 import { getRequestSession } from "@/lib/auth";
 import { getViewSession, readActAs } from "@/lib/admin/act-as";
+import { installationVisibleWhere } from "@/lib/github/installation-access";
 import { getPrisma } from "@/lib/db";
 import { githubAppInstallUrl } from "@/lib/config";
 import { avatarFor, initialsFor } from "@/lib/profile/avatar";
@@ -60,7 +61,7 @@ export default async function ProfilePage({
   const prisma = getPrisma();
   const installations = prisma
     ? await prisma.installation.findMany({
-        where: { userId: session.userId, uninstalledAt: null, suspendedAt: null },
+        where: installationVisibleWhere(session.userId),
         include: { _count: { select: { repos: { where: { removed: false } } } } },
         orderBy: { accountLogin: "asc" },
       })

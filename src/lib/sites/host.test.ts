@@ -49,6 +49,28 @@ describe("docs host routing", () => {
         ...options,
       }),
     ).toEqual({ kind: "next" });
+    expect(
+      decideProxy({
+        host: "plugr.opentip.tech",
+        pathname: "/api-reference",
+        ...options,
+      }),
+    ).toEqual({
+      kind: "rewrite",
+      pathname: "/sites/plugr/api-reference",
+      publicHost: "plugr.opentip.tech",
+    });
+    expect(
+      decideProxy({
+        host: "plugr.opentip.tech",
+        pathname: "/api-reference/users",
+        ...options,
+      }),
+    ).toEqual({
+      kind: "rewrite",
+      pathname: "/sites/plugr/api-reference/users",
+      publicHost: "plugr.opentip.tech",
+    });
   });
 
   it("protects the profile page", () => {
