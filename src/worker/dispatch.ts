@@ -19,6 +19,7 @@ import {
   finalizeUsage,
 } from "@/lib/copilot/reserve";
 import { resolveProvider } from "@/lib/copilot/providers";
+import { assertCredits } from "@/lib/credits/apply";
 import { getPrisma } from "@/lib/db";
 import { createInstallationToken } from "@/lib/github/installation-token";
 import {
@@ -73,6 +74,10 @@ export async function runJob(
   if (site.status === "PAUSED") {
     throw new PermanentJobError("This site is paused.");
   }
+  const credits = await assertCredits(site.ownerId);
+  if (!credits.ok) {
+    throw new PermanentJobError(credits.error);
+  }
   if (repo.installation.uninstalledAt || repo.installation.suspendedAt) {
     throw new PermanentJobError("The GitHub App is not connected for this repository.");
   }
@@ -120,9 +125,7 @@ export async function runJob(
       jobKind: loaded.kind,
     });
     if (!reservation.allowed) {
-      throw new PermanentJobError(
-        "Today's generation limit was reached. Try again tomorrow.",
-      );
+      throw new PermanentJobError("Try again later.");
     }
     usageId = reservation.usageId;
 

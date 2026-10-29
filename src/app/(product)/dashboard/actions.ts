@@ -6,6 +6,7 @@ import { requireUserAction } from "@/lib/admin/guard";
 import { flashToast } from "@/lib/toast-server";
 import type { ImportField, ImportFormState } from "@/lib/import/import-state";
 import { importRepo, type ImportResult } from "@/lib/import/repo-import";
+import { assertCredits } from "@/lib/credits/apply";
 import { createPrismaImportStore } from "@/lib/import/prisma-import-store";
 
 function failure(field: ImportField | "form", message: string): ImportFormState {
@@ -20,6 +21,8 @@ export async function importRepository(
   const repoId = String(formData.get("repoId") ?? "");
   const store = createPrismaImportStore();
   if (!store) return failure("form", "The database is not connected.");
+  const credits = await assertCredits(session.userId);
+  if (!credits.ok) return failure("form", credits.error);
 
   let result: ImportResult;
   try {
