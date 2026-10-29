@@ -1,6 +1,9 @@
 import { Prisma } from "@/generated/prisma/client";
 import {
   checkSpendCaps,
+  DEFAULT_FIRST_BUILD_CAP_USD,
+  readCap,
+  spendDecision,
   utcDayKey,
   type CapDecision,
 } from "@/lib/copilot/caps";
@@ -14,6 +17,8 @@ export async function reserveDailySpend(input: {
   provider: "XAI" | "GROQ" | "FAKE";
   model: string;
   jobId?: string;
+  jobKind?: "FIRST_BUILD" | "PUSH_UPDATE" | "CHAT_EDIT" | "SUMMARY_REFRESH";
+  firstBuildCapUsd?: number;
   now?: Date;
 }): Promise<CapDecision & { usageId?: string }> {
   const prisma = getPrisma();
@@ -24,23 +29,47 @@ export async function reserveDailySpend(input: {
   const day = new Date(`${utcDayKey(now)}T00:00:00.000Z`);
   return prisma.$transaction(
     async (tx) => {
-      const [repoSpent, globalSpent] = await Promise.all([
-        tx.usageEntry.aggregate({
+      const [repoRows, globalSpent] = await Promise.all([
+        tx.usageEntry.findMany({
           where: { repoId: input.repoId, day },
-          _sum: { estimatedCostUsd: true },
+          select: {
+            estimatedCostUsd: true,
+            job: { select: { kind: true } },
+          },
         }),
         tx.usageEntry.aggregate({
           where: { day },
           _sum: { estimatedCostUsd: true },
         }),
       ]);
-      const decision = checkSpendCaps({
-        repoSpentUsd: Number(repoSpent._sum.estimatedCostUsd ?? 0),
-        globalSpentUsd: Number(globalSpent._sum.estimatedCostUsd ?? 0),
-        repoCapUsd: input.repoCapUsd,
-        globalCapUsd: input.globalCapUsd,
-        nextJobEstimateUsd: input.estimateUsd,
-      });
+      let repoSpentUsd = 0;
+      let firstBuildSpentUsd = 0;
+      for (const row of repoRows) {
+        const cost = Number(row.estimatedCostUsd);
+        if (row.job?.kind === "FIRST_BUILD") firstBuildSpentUsd += cost;
+        else repoSpentUsd += cost;
+      }
+      const decision =
+        input.jobKind === "FIRST_BUILD"
+          ? spendDecision({
+              jobKind: "FIRST_BUILD",
+              repoSpentUsd,
+              firstBuildSpentUsd,
+              globalSpentUsd: Number(globalSpent._sum.estimatedCostUsd ?? 0),
+              repoCapUsd: input.repoCapUsd,
+              firstBuildCapUsd:
+                input.firstBuildCapUsd ??
+                readCap(process.env.FIRST_BUILD_CAP_USD, DEFAULT_FIRST_BUILD_CAP_USD),
+              globalCapUsd: input.globalCapUsd,
+              nextJobEstimateUsd: input.estimateUsd,
+            })
+          : checkSpendCaps({
+              repoSpentUsd: input.jobKind ? repoSpentUsd : repoSpentUsd + firstBuildSpentUsd,
+              globalSpentUsd: Number(globalSpent._sum.estimatedCostUsd ?? 0),
+              repoCapUsd: input.repoCapUsd,
+              globalCapUsd: input.globalCapUsd,
+              nextJobEstimateUsd: input.estimateUsd,
+            });
       if (!decision.allowed) return decision;
       const row = await tx.usageEntry.create({
         data: {

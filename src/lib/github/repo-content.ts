@@ -2,7 +2,7 @@ import { githubApiHeaders } from "@/lib/github/app";
 
 const API = "https://api.github.com";
 const MAX_TREE_PATHS = 2_000;
-const MAX_FILES = 80;
+const MAX_FILES = 120;
 const MAX_FILE_CHARS = 60_000;
 const MAX_TOTAL_CHARS = 240_000;
 const MAX_COMPARE_FILES = 120;
@@ -91,25 +91,78 @@ export function isRelevantPath(path: string): boolean {
   return true;
 }
 
-function contentPriority(path: string): number {
+const PLANNING_PATH =
+  /(?:^|\/)(?:roadmap|todo|todos|backlog|future|planning|ideas|vision|rfc|proposal|unreleased)(?:\/|\.|$)/;
+
+export function isPlanningPath(path: string): boolean {
+  const lower = path.toLowerCase();
+  if (PLANNING_PATH.test(lower)) return true;
+  return /(?:roadmap|future-work|not-implemented|wip-notes)/.test(lower);
+}
+
+export function isRouteFile(path: string): boolean {
+  const lower = path.toLowerCase();
+  return (
+    /(?:^|\/)app\/(?:.*\/)?route\.(?:ts|tsx|js|jsx|mjs|cjs)$/.test(lower) ||
+    /(?:^|\/)pages\/api\/.+\.(?:ts|tsx|js|jsx|mjs)$/.test(lower) ||
+    /(?:^|\/)src\/pages\/api\/.+\.(?:ts|tsx|js|jsx|mjs)$/.test(lower)
+  );
+}
+
+function isEntryPoint(path: string): boolean {
   const lower = path.toLowerCase();
   const name = lower.split("/").pop() ?? "";
-  if (/^readme(\.[a-z0-9]+)?$/.test(name)) return 0;
-  if (lower.startsWith("docs/")) return 1;
-  if (name.endsWith(".md") || name.endsWith(".mdx")) return 2;
-  if (MANIFEST_FILES.has(name)) return 3;
-  if (lower.includes("/examples/") || lower.startsWith("examples/")) return 4;
-  if (/^(src|app|lib|packages|cmd|internal)\//.test(lower)) return 5;
-  if (name.endsWith(".ts") || name.endsWith(".tsx") || name.endsWith(".js") || name.endsWith(".jsx")) {
-    return 6;
+  if (/(?:^|\/)(?:bin|cmd|cli)\//.test(lower)) return true;
+  const depth = lower.split("/").length;
+  if (depth <= 3 && /^(?:index|main|cli|server|mod)\.(?:ts|tsx|js|jsx|mjs|py|go|rs)$/.test(name)) {
+    return true;
   }
-  return 9;
+  return false;
+}
+
+function isSourcePath(path: string): boolean {
+  const lower = path.toLowerCase();
+  const name = lower.split("/").pop() ?? "";
+  if (/^(?:src|app|lib|packages|cmd|internal|prisma|server|api)\//.test(lower)) return true;
+  if (/\/(?:src|lib|server|api)\//.test(lower)) return true;
+  return /\.(?:ts|tsx|js|jsx|mjs|cjs|py|go|rs|java|rb|php|prisma)$/.test(name);
+}
+
+/**
+ * Lower ranks are read first. Shipped code, routes, manifests, and schema
+ * outrank prose. Planning notes and .github are last.
+ */
+export function contentRank(path: string): number {
+  const lower = path.toLowerCase();
+  const name = lower.split("/").pop() ?? "";
+  if (lower.startsWith(".github/") || lower === ".github") return 90;
+  if (isPlanningPath(lower)) return 80;
+  if (
+    name === "package.json" ||
+    name === "schema.prisma" ||
+    name.endsWith(".env.example") ||
+    name === "pyproject.toml" ||
+    name === "go.mod" ||
+    name === "cargo.toml" ||
+    name === "composer.json"
+  ) {
+    return 0;
+  }
+  if (MANIFEST_FILES.has(name)) return 1;
+  if (isRouteFile(lower)) return 2;
+  if (isEntryPoint(lower)) return 3;
+  if (isSourcePath(lower)) return 4;
+  if (/^readme(?:\.[a-z0-9]+)?$/.test(name) && !lower.includes("/")) return 5;
+  if (lower.includes("/examples/") || lower.startsWith("examples/")) return 6;
+  if ((lower.startsWith("docs/") || lower.includes("/docs/")) && !isPlanningPath(lower)) return 7;
+  if (name.endsWith(".md") || name.endsWith(".mdx")) return 8;
+  return 10;
 }
 
 export function selectContentCandidates(paths: string[]): string[] {
   return paths
     .filter(isRelevantPath)
-    .map((path) => ({ path, priority: contentPriority(path) }))
+    .map((path) => ({ path, priority: contentRank(path) }))
     .sort((a, b) => a.priority - b.priority || a.path.localeCompare(b.path))
     .slice(0, MAX_FILES)
     .map((item) => item.path);
