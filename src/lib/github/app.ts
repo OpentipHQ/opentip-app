@@ -113,10 +113,11 @@ export async function exchangeGithubCode(code: string): Promise<GithubAuthorizat
 }
 
 export function githubApiHeaders(token: string): HeadersInit {
-  return {
+  const headers: Record<string, string> = {
     accept: "application/vnd.github+json",
-    authorization: `Bearer ${token}`,
     "user-agent": "Opentip Copilot",
     "x-github-api-version": "2022-11-28",
   };
+  if (token) headers.authorization = `Bearer ${token}`;
+  return headers;
 }

@@ -1,3 +1,4 @@
+import { emailSignInAllowed } from "@/lib/auth/email-signin";
 import { sessionSecret } from "@/lib/config";
 import { getPrisma } from "@/lib/db";
 import { hasBetaAccess } from "@/lib/beta/access";
@@ -14,7 +15,7 @@ import { sendLoginCodeEmail } from "@/lib/email/login-code-mail";
 import { createAppUser, findUserByEmail, updateAppUser } from "@/lib/auth/users";
 
 export type IssueResult =
-  | { status: "invalid" | "waitlist" | "cooldown" | "rate" | "unconfigured" | "database" | "session" }
+  | { status: "invalid" | "waitlist" | "cooldown" | "rate" | "unconfigured" | "database" | "session" | "disabled" }
   | { status: "sent" };
 
 export type VerifyResult =
@@ -29,7 +30,8 @@ export type VerifyResult =
         | "missing"
         | "used"
         | "waitlist"
-        | "suspended";
+        | "suspended"
+        | "disabled";
     };
 
 function codeSecret(): string | null {
@@ -48,6 +50,11 @@ export async function issueLoginCode(args: {
   const prisma = getPrisma();
   if (!prisma) return { status: "database" };
   const now = args.now ?? new Date();
+  const account = await prisma.user.findUnique({
+    where: { email },
+    select: { emailSignInEnabled: true },
+  });
+  if (!emailSignInAllowed(account)) return { status: "disabled" };
   const approved = await hasBetaAccess(email);
   const since = hourAgo(now);
   const ipHash = hashIp(args.ip || "local", secret);
@@ -100,6 +107,11 @@ export async function verifyLoginCode(args: {
   const prisma = getPrisma();
   if (!prisma) return { status: "database" };
   const now = args.now ?? new Date();
+  const account = await prisma.user.findUnique({
+    where: { email },
+    select: { emailSignInEnabled: true },
+  });
+  if (!emailSignInAllowed(account)) return { status: "disabled" };
   const row = await prisma.loginCode.findFirst({
     where: { email, purpose: "signin" },
     orderBy: { createdAt: "desc" },

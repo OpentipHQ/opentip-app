@@ -29,6 +29,8 @@ export type DocsSite = {
   logoHref: string | null;
   ogBackgroundUrl: string | null;
   ogImageUrl: string | null;
+  repoFullName: string | null;
+  repoBranch: string | null;
   pages: DocsPage[];
   source: "database" | "preview";
 };

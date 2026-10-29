@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { getRequestSession, sessionCookieOptions } from "@/lib/auth";
 import { sessionSecret } from "@/lib/config";
+import { getPrisma } from "@/lib/db";
 import { signSession, verifySession, type Session } from "@/lib/session";
 
 export const ACT_AS_COOKIE = "opentip_act_as";
@@ -8,12 +9,25 @@ export const ACT_AS_TTL_SECONDS = 60 * 30;
 
 export type ActAsSession = Session & { actorId: string };
 
+export function actAsActorAllowed(
+  actor: { role: string; suspendedAt: Date | null } | null,
+): boolean {
+  return Boolean(actor && actor.role === "ADMIN" && !actor.suspendedAt);
+}
+
 export async function readActAs(): Promise<ActAsSession | null> {
   const secret = sessionSecret();
   if (!secret) return null;
   const jar = await cookies();
   const raw = await verifySession(jar.get(ACT_AS_COOKIE)?.value, secret);
   if (!raw || !raw.actorId) return null;
+  const prisma = getPrisma();
+  if (!prisma) return null;
+  const actor = await prisma.user.findUnique({
+    where: { id: raw.actorId },
+    select: { role: true, suspendedAt: true },
+  });
+  if (!actAsActorAllowed(actor)) return null;
   return raw as ActAsSession;
 }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { signActAs, writesBlocked } from "@/lib/admin/act-as";
+import { actAsActorAllowed, signActAs, writesBlocked } from "@/lib/admin/act-as";
 import { verifySession } from "@/lib/session";
 
 const target = { id: "user_2", login: "ada", name: "Ada", role: "USER" as const };
@@ -23,6 +23,13 @@ describe("act-as cookie", () => {
     expect(token).toBeTruthy();
     const later = Date.now() + 31 * 60 * 1000;
     expect(await verifySession(token ?? undefined, "secret", later)).toBeNull();
+  });
+
+  it("requires the actor to still be an active admin", () => {
+    expect(actAsActorAllowed({ role: "ADMIN", suspendedAt: null })).toBe(true);
+    expect(actAsActorAllowed({ role: "USER", suspendedAt: null })).toBe(false);
+    expect(actAsActorAllowed({ role: "ADMIN", suspendedAt: new Date() })).toBe(false);
+    expect(actAsActorAllowed(null)).toBe(false);
   });
 
   it("reports writes as blocked whenever act-as exists", () => {

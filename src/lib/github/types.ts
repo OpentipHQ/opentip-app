@@ -43,6 +43,8 @@ export interface WebhookRepository {
     reason: string,
   ): Promise<number>;
   pauseRepos(githubRepoIds: string[], reason: string): Promise<number>;
+  resumeInstallation(githubInstallationId: string, reasons: string[]): Promise<number>;
+  resumeRepos(githubRepoIds: string[], reasons: string[]): Promise<number>;
   addRepos(githubInstallationId: string, repos: RepoSeed[]): Promise<number>;
   recordError(input: {
     deliveryId: string;
@@ -72,6 +74,7 @@ export type WebhookBody =
       event?: string;
       jobId?: string | null;
       paused?: number;
+      resumed?: number;
       ignored?: boolean;
     };
 

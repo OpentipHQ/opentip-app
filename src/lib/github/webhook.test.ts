@@ -32,6 +32,7 @@ function repoWithSite() {
     installationGithubId: "7",
     status: "ACTIVE",
     pausedReason: null,
+    publishedPages: 1,
   });
   repo.installations.set("7", {
     accountLogin: "acme",
@@ -229,5 +230,39 @@ describe("github webhook idempotency", () => {
     const result = await handleGithubWebhook({ ...request, secret: SECRET, repo });
     expect(result.body).toMatchObject({ paused: 1 });
     expect(repo.sites[0]?.pausedReason).toBe("repo_removed");
+  });
+
+  it("resumes a site when the GitHub App is unsuspended", async () => {
+    const repo = repoWithSite();
+    repo.sites[0]!.status = "PAUSED";
+    repo.sites[0]!.pausedReason = "github_app_suspended";
+    const body = JSON.stringify({
+      action: "unsuspend",
+      installation: { id: 7, account: { login: "acme", type: "Organization" } },
+    });
+    const request = signed(body);
+    request.headers.event = "installation";
+    request.headers.deliveryId = "delivery-unsuspend";
+    const result = await handleGithubWebhook({ ...request, secret: SECRET, repo });
+    expect(result.body).toMatchObject({ ok: true, resumed: 1 });
+    expect(repo.sites[0]).toMatchObject({ status: "ACTIVE", pausedReason: null });
+  });
+
+  it("resumes a removed repo when it is added back", async () => {
+    const repo = repoWithSite();
+    repo.sites[0]!.status = "PAUSED";
+    repo.sites[0]!.pausedReason = "repo_removed";
+    repo.sites[0]!.publishedPages = 0;
+    const body = JSON.stringify({
+      action: "added",
+      installation: { id: 7 },
+      repositories_added: [{ id: 42, name: "docs", full_name: "acme/docs", owner: { login: "acme" } }],
+    });
+    const request = signed(body);
+    request.headers.event = "installation_repositories";
+    request.headers.deliveryId = "delivery-added";
+    const result = await handleGithubWebhook({ ...request, secret: SECRET, repo });
+    expect(result.body).toMatchObject({ ok: true, resumed: 1 });
+    expect(repo.sites[0]?.status).toBe("PENDING");
   });
 });

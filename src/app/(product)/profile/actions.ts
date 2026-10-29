@@ -5,6 +5,10 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { flashToast, redirectWithToast } from "@/lib/toast-server";
 import { requireUserAction } from "@/lib/admin/guard";
+import {
+  betaAccessAfterEmailChange,
+  betaAccessEmailsToRevokeOnDelete,
+} from "@/lib/beta/account-access";
 import { logActivity } from "@/lib/admin/activity";
 import { sessionCookieOptions } from "@/lib/auth";
 import { issueEmailChangeCode, verifyEmailChangeCode } from "@/lib/auth/email-flow";
@@ -193,8 +197,11 @@ export async function confirmEmailChange(formData: FormData) {
         where: { id: session.userId },
         data: { email, sessionVersion: { increment: 1 } },
       });
+      const access = betaAccessAfterEmailChange();
       if (current?.email && current.email !== email) {
-        await tx.betaAccess.deleteMany({ where: { email: current.email } });
+        if (access.revokePreviousEmail) {
+          await tx.betaAccess.deleteMany({ where: { email: current.email } });
+        }
         const previousPreference = await tx.emailPreference.findUnique({
           where: { email: current.email },
         });
@@ -219,11 +226,13 @@ export async function confirmEmailChange(formData: FormData) {
           }
         }
       }
-      await tx.betaAccess.upsert({
-        where: { email },
-        create: { email },
-        update: {},
-      });
+      if (access.grantNextEmail) {
+        await tx.betaAccess.upsert({
+          where: { email },
+          create: { email },
+          update: {},
+        });
+      }
     });
   } catch (error) {
     if (isUniqueConstraint(error)) {
@@ -371,7 +380,9 @@ export async function deleteAccount(formData: FormData) {
     targetId: session.userId,
     metadata: { login: user.login, email: user.email },
   });
+  const revokedEmails = betaAccessEmailsToRevokeOnDelete(user.email);
   await prisma.$transaction([
+    ...revokedEmails.map((email) => prisma.betaAccess.deleteMany({ where: { email } })),
     ...(user.email
       ? [prisma.emailPreference.deleteMany({ where: { email: user.email } })]
       : []),

@@ -22,6 +22,7 @@ type SiteRecord = {
   logoHref: string | null;
   ogBackgroundUrl: string | null;
   ogImageUrl: string | null;
+  repo: { fullName: string; defaultBranch: string } | null;
   pages: Array<{
     slug: string;
     section: string | null;
@@ -37,7 +38,8 @@ type SiteRecord = {
 };
 
 function mapSite(site: SiteRecord): DocsSite {
-  const pages: DocsPage[] = site.pages.map((page) => ({
+  const { repo, pages: rawPages, ...rest } = site;
+  const pages: DocsPage[] = rawPages.map((page) => ({
     slug: page.slug,
     section: page.section,
     title: page.title,
@@ -50,8 +52,10 @@ function mapSite(site: SiteRecord): DocsSite {
     ogImageUrl: page.ogImageUrl,
   }));
   return {
-    ...site,
+    ...rest,
     primaryColor: sanitizeColor(site.primaryColor),
+    repoFullName: repo?.fullName ?? null,
+    repoBranch: repo?.defaultBranch ?? null,
     pages,
     source: "database",
   };
@@ -59,6 +63,7 @@ function mapSite(site: SiteRecord): DocsSite {
 
 const include = {
   pages: { orderBy: { navOrder: "asc" as const } },
+  repo: { select: { fullName: true, defaultBranch: true } },
 };
 
 export async function getSiteBySubdomain(subdomain: string): Promise<DocsSite | null> {
