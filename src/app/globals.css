@@ -135,6 +135,28 @@
   --sidebar-ring: #2a2ad6;
 }
 
+.docs-light {
+  color-scheme: light;
+  --background: #fafafa;
+  --foreground: #171717;
+  --card: #ffffff;
+  --card-foreground: #171717;
+  --popover: #ffffff;
+  --popover-foreground: #171717;
+  --primary: #000000;
+  --primary-foreground: #ffffff;
+  --secondary: #f4f4f5;
+  --secondary-foreground: #171717;
+  --muted: #f4f4f5;
+  --muted-foreground: #6b6b6b;
+  --accent: #f4f4f5;
+  --accent-foreground: #171717;
+  --border: #ebebeb;
+  --input: #ebebeb;
+  --link: #2a2ad6;
+  --ring: #2a2ad6;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

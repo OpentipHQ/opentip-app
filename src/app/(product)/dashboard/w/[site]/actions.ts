@@ -8,8 +8,6 @@ import { getPrisma } from "@/lib/db";
 import { approveRevision, rejectRevision } from "@/lib/sites/publish";
 import { redirectWithToast } from "@/lib/toast-server";
 
-export { sendChatEditAction } from "@/app/(product)/dashboard/sites/[id]/actions";
-
 function pathFor(subdomain: string, section = "") {
   return `/dashboard/w/${subdomain}${section}`;
 }

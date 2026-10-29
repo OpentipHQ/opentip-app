@@ -31,7 +31,9 @@ const gettingStarted = [
 const gettingStartedDraft = [
   "Set up Plugr in a new or existing project.",
   "",
-  "Install Plugr with your package manager. Requires Node 18. Requires Node 18 or later.",
+  "## Install",
+  "",
+  "Install Plugr with your package manager. Requires Node 18 or later.",
   "",
   "```bash",
   "npm install plugr",

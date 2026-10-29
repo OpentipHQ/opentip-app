@@ -4,7 +4,8 @@ import { useState } from "react";
 import { LiveRefresh } from "@/components/sites/live-refresh";
 import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/ui/submit-button";
-import { sendChatEditAction, discardDraftAction, publishDraftAction } from "@/app/(product)/dashboard/w/[site]/actions";
+import { sendChatEditAction } from "@/app/(product)/dashboard/sites/[id]/actions";
+import { discardDraftAction, publishDraftAction } from "@/app/(product)/dashboard/w/[site]/actions";
 import { cn } from "cn";
 
 type PageOption = { id: string; slug: string; title: string; pending: boolean };

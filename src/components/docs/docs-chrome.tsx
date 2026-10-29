@@ -85,7 +85,7 @@ export function DocsChrome({
 
   return (
     <div
-      className={cn("min-h-screen bg-background text-foreground", dark && "dark")}
+      className={cn("min-h-screen bg-background text-foreground", dark ? "dark" : "docs-light")}
       style={{ "--docs-primary": primaryColor } as React.CSSProperties}
     >
       <div className="min-h-screen bg-background text-foreground">

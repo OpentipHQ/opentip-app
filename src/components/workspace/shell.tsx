@@ -108,12 +108,20 @@ export function WorkspaceShell({
             </span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="hidden text-sm text-muted-foreground md:inline">{site.host}</span>
-            <Button nativeButton={false} variant="outline" size="sm" render={<a href={`/sites/${site.subdomain}`} target="_blank" rel="noreferrer" />}>
+            <span className="hidden text-sm text-muted-foreground lg:inline">{site.host}</span>
+            <Button
+              nativeButton={false}
+              variant="outline"
+              size="sm"
+              className="hidden sm:inline-flex"
+              render={<a href={`/sites/${site.subdomain}`} target="_blank" rel="noreferrer" />}
+            >
               Open site
               <ArrowUpRight />
             </Button>
-            <UserMenu user={user} />
+            <div className="max-sm:[&_span]:sr-only">
+              <UserMenu user={user} />
+            </div>
           </div>
         </header>
         {banner}
