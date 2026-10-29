@@ -49,6 +49,7 @@ export function DocsChrome({
   description,
   headings,
   sources,
+  pendingSlugs,
   children,
 }: {
   name: string;
@@ -66,6 +67,7 @@ export function DocsChrome({
   description: string | null;
   headings: DocsHeading[];
   sources: DocsSourceLink[];
+  pendingSlugs?: string[];
   children: React.ReactNode;
 }) {
   const systemDark = useSyncExternalStore(
@@ -92,7 +94,7 @@ export function DocsChrome({
           <div className="px-3 pb-2">
             <DocsSearch items={searchItems} />
           </div>
-          <DocsNav sections={sections} currentSlug={currentSlug} />
+          <DocsNav sections={sections} currentSlug={currentSlug} pendingSlugs={pendingSlugs} />
         </aside>
         <div className="md:pl-64">
           <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-border bg-white px-4 md:hidden dark:bg-card">
@@ -108,7 +110,7 @@ export function DocsChrome({
                 <div className="px-3 pb-3">
                   <DocsSearch items={searchItems} />
                 </div>
-                <DocsNav sections={sections} currentSlug={currentSlug} />
+                <DocsNav sections={sections} currentSlug={currentSlug} pendingSlugs={pendingSlugs} />
               </SheetContent>
             </Sheet>
             <span className="text-sm">{name}</span>
@@ -222,9 +224,11 @@ function Brand({
 function DocsNav({
   sections,
   currentSlug,
+  pendingSlugs = [],
 }: {
   sections: Array<{ section: string; items: DocsNavItem[] }>;
   currentSlug: string;
+  pendingSlugs?: string[];
 }) {
   return (
     <nav className="flex flex-col gap-5 overflow-y-auto px-3 py-4">
@@ -244,7 +248,12 @@ function DocsNav({
                   : "text-foreground hover:bg-muted",
               )}
             >
-              {item.title}
+              <span className="flex items-center justify-between gap-2">
+                {item.title}
+                {pendingSlugs.includes(item.slug) ? (
+                  <span className="size-1.5 rounded-full bg-live" />
+                ) : null}
+              </span>
             </Link>
           ))}
         </div>

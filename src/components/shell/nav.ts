@@ -1,9 +1,8 @@
 import type { ShellItem } from "@/components/shell/app-shell";
 
 export const dashboardNav: ShellItem[] = [
-  { href: "/dashboard", label: "Import" },
-  { href: "/dashboard/sites", label: "Sites" },
-  { href: "/dashboard/worklog", label: "Changelog" },
+  { href: "/dashboard", label: "Workspaces" },
+  { href: "/dashboard/usage", label: "Usage" },
 ];
 
 export const adminNav: ShellItem[] = [
@@ -13,6 +12,7 @@ export const adminNav: ShellItem[] = [
   { href: "/admin/usage", label: "Usage" },
   { href: "/admin/jobs", label: "Jobs" },
   { href: "/admin/plans", label: "Plans" },
+  { href: "/admin/credits", label: "Credits" },
   { href: "/admin/feedback", label: "Feedback" },
   { href: "/admin/invites", label: "Invites" },
   { href: "/admin/installs", label: "Installs" },

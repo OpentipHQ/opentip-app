@@ -1,11 +1,9 @@
 import { redirect } from "next/navigation";
-import { AppShell } from "@/components/shell/app-shell";
-import { dashboardNav } from "@/components/shell/nav";
+import { LowBalanceBanner } from "@/components/credits/low-balance";
+import { ProductFrame } from "@/components/product/product-frame";
 import { getRequestSession } from "@/lib/auth";
 import { getViewSession, readActAs } from "@/lib/admin/act-as";
-import { loadActiveAnnouncement } from "@/lib/announcements";
 import { loadCurrentUser } from "@/lib/profile/user";
-import { devBypassEnabled } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -19,16 +17,13 @@ export default async function DashboardLayout({
   const view = (await getViewSession()) ?? session;
   const actAs = await readActAs();
   const user = await loadCurrentUser(view);
-  const announcement = await loadActiveAnnouncement();
   return (
-    <AppShell
-      items={dashboardNav}
+    <ProductFrame
       user={user}
       actAs={actAs ? { login: actAs.login, name: actAs.name } : null}
-      devPreview={devBypassEnabled()}
-      announcement={announcement}
+      banner={<LowBalanceBanner userId={view.userId} />}
     >
       {children}
-    </AppShell>
+    </ProductFrame>
   );
 }

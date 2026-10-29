@@ -44,7 +44,7 @@ export async function importRepository(
     revalidatePath("/dashboard");
     revalidatePath("/dashboard/sites");
     await flashToast("success", "Build queued. Your docs are being generated.");
-    redirect(`/dashboard/sites/${result.siteId}/builds/${result.jobId}?imported=1`);
+    redirect(`/dashboard/sites/${result.siteId}`);
   }
   if (result.status === "already-imported") {
     revalidatePath("/dashboard");
