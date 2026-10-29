@@ -1,8 +1,14 @@
-import { writeFileSync } from "node:fs";
+import { readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { join, relative } from "node:path";
 import { extractFacts } from "@/lib/copilot/facts";
 import { runFirstBuildPipeline } from "@/lib/copilot/pipeline";
 import { resolveProvider } from "@/lib/copilot/providers";
-import { readRepoSnapshot } from "@/lib/github/repo-content";
+import {
+  isRelevantPath,
+  readRepoSnapshot,
+  selectContentCandidates,
+  type RepoSnapshot,
+} from "@/lib/github/repo-content";
 
 const repo = process.argv[2] ?? "optimusexe/Plugr";
 const [owner, name] = repo.split("/");
@@ -11,13 +17,16 @@ if (!owner || !name) {
   process.exit(1);
 }
 
-const token = process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN ?? "";
-const snapshot = await readRepoSnapshot({
-  owner,
-  name,
-  branch: process.env.DOCS_BRANCH ?? "main",
-  token,
-});
+async function main() {
+const localRoot = process.env.LOCAL_REPO;
+const snapshot = localRoot
+  ? snapshotFromDisk(localRoot)
+  : await readRepoSnapshot({
+      owner,
+      name,
+      branch: process.env.DOCS_BRANCH ?? "main",
+      token: process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN ?? "",
+    });
 const facts = extractFacts(snapshot);
 const result = await runFirstBuildPipeline({
   heavy: resolveProvider("heavy", process.env),
@@ -47,6 +56,45 @@ const report = {
   sample: result.pages.find((page) => page.slug === "getting-started") ?? result.pages[0] ?? null,
 };
 
+function snapshotFromDisk(root: string): RepoSnapshot {
+  const treePaths: string[] = [];
+  const walk = (dir: string) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      if (entry.name === ".git" || entry.name === "node_modules" || entry.name === ".next") continue;
+      const full = join(dir, entry.name);
+      const rel = relative(root, full);
+      if (entry.isDirectory()) {
+        walk(full);
+        continue;
+      }
+      if (!statSync(full).isFile() || !isRelevantPath(rel)) continue;
+      treePaths.push(rel);
+      if (treePaths.length >= 2_000) return;
+    }
+  };
+  walk(root);
+  const candidates = selectContentCandidates(treePaths);
+  const files = [];
+  let total = 0;
+  for (const path of candidates) {
+    const raw = readFileSync(join(root, path), "utf8");
+    if (raw.includes("\u0000")) continue;
+    const truncated = raw.length > 60_000;
+    const content = truncated ? raw.slice(0, 60_000) : raw;
+    if (total + content.length > 240_000) break;
+    total += content.length;
+    files.push({ path, content, truncated });
+  }
+  return {
+    sha: "local",
+    branch: "main",
+    treePaths,
+    files,
+    omittedFiles: Math.max(0, candidates.length - files.length),
+    treeTruncated: false,
+  };
+}
+
 const out = process.env.DOCS_PIPELINE_OUT ?? "/tmp/docs-pipeline-result.json";
 writeFileSync(out, JSON.stringify(report, null, 2));
 console.log(
@@ -75,3 +123,9 @@ console.log(
     2,
   ),
 );
+}
+
+main().catch((error: unknown) => {
+  console.error(error instanceof Error ? error.message : error);
+  process.exit(1);
+});

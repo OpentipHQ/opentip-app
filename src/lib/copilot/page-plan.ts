@@ -34,7 +34,7 @@ export function planPagesFromFacts(input: {
     slug: "",
     section: "Introduction",
     title: facts.packageName ? titleFromPackage(facts.packageName) : "Overview",
-    description: facts.packageDescription ?? "What this project does and where to start.",
+    description: facts.packageDescription || "What this project does and where to start.",
     navOrder: 0,
     kind: "home",
     audience: facts.audience,
@@ -115,7 +115,11 @@ export function mergePagePlan(input: {
       const current = bySlug.get(slug)!;
       const extra = (raw.sourcePaths ?? []).filter((path) => tree.has(path));
       current.sourcePaths = unique([...current.sourcePaths, ...extra]).slice(0, 8);
-      if (typeof raw.description === "string" && raw.description.trim()) {
+      if (
+        typeof raw.description === "string" &&
+        raw.description.trim() &&
+        (raw.sourcePaths?.length ?? 0) > 0
+      ) {
         current.description = raw.description.trim().slice(0, 280);
       }
       continue;
@@ -280,13 +284,11 @@ export function factualPageContent(
     if (facts.envVars.length > 0) {
       steps.push(`Create an environment file with:\n\n${facts.envVars.slice(0, 12).map((item) => `- \`${item.name}\``).join("\n")}`);
     }
-    if (facts.schemaModels.length > 0) {
-      const migrate = facts.scripts.find((script) => /migrate|db/.test(script.name));
-      steps.push(
-        migrate
-          ? `Apply the database schema.\n\n\`\`\`bash\nnpm run ${migrate.name}\n\`\`\``
-          : `This project stores data in: ${facts.schemaModels.map((model) => model.name).join(", ")}.`,
-      );
+    const migrate = facts.scripts.find((script) => /migrate|db/.test(script.name));
+    if (migrate) {
+      steps.push(`Apply the database schema.\n\n\`\`\`bash\nnpm run ${migrate.name}\n\`\`\``);
+    } else if (facts.schemaModels.length > 0) {
+      steps.push(`This project stores data in: ${facts.schemaModels.map((model) => model.name).join(", ")}.`);
     }
     const dev = facts.scripts.find((script) => script.name === "dev" || script.name === "start");
     if (dev) steps.push(`Start the project.\n\n\`\`\`bash\nnpm run ${dev.name}\n\`\`\``);
